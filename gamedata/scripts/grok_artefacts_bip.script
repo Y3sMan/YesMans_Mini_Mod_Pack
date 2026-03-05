@@ -122,12 +122,6 @@ local af_by_tiers = { }
 
 function actor_on_first_update()	
 	actor_status.add_indicator("Artefact"       	   	, { index= 16 	,typ= "state"	,functor= {"grok_artefacts_bip","get_artefact",true}	                    ,icon= "ui\\alticons\\ArtefactIndicator.dds"           ,background= "ui\\alticons\\bg1.dds"	,anim_icon= true	,anim_bk= false  })
-
-	print_table(detectors)
-	for k,v in pairs(detectors) do
-		debug("detector = " .. k)			
-
-	end
 end
 
 local af_detection_dist = 500
@@ -176,28 +170,27 @@ function actor_on_update()
 --			end
 --		end, actor)
 		
-		-- new method to make detector work from backpack
-		-- YesMan
-		local obj_detector = nil
 
+
+		-- -- new method to make detector work from backpack
+		-- -- YesMan
 		for det_k, v in pairs(detectors) do
-			-- check if 
-			obj_detector = db.actor:object(det_k)
-			if obj_detector then
-				break
-			end
-		end
-
-		if obj_detector then
-			local sec = obj_detector:section()
-			if sec and detectors[sec] then
-				if available_det_tier and available_det_tier < detectors[sec] then
-					available_det_tier = detectors[sec]
-					printf(available_det_tier)
+			local obj_det = db.actor:object(det_k)
+			if obj_det then
+				local det_sec = obj_det:section()
+				if det_sec then
+					debug("detector in inv = " .. tostring(det_sec))
+					if detectors[det_sec] then
+						debug("det_sec in table")
+						if available_det_tier < v then
+							debug("old tier = " .. tostring(available_det_tier))
+							debug("new tier = " .. tostring(v))
+							available_det_tier = v
+						end
+					end
 				end
 			end
 		end
-
 
 
 		local play_sound = false
@@ -245,6 +238,8 @@ function get_artefact(visual)
 	af_detected = 0
 	return 0
 end
+
+
 
 function on_game_start()
 	local af_tiers_ini = ini_file("items\\settings\\passive_detector_artefact_tiers.ltx")
