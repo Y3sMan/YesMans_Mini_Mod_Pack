@@ -1,5 +1,8 @@
 name: Create Release with 7z Archive
 
+env:
+  REPO_NAME: "Hide Rad Bar"
+
 on:
   workflow_dispatch:
     inputs:
@@ -38,7 +41,7 @@ jobs:
       - name: Create 7z archive
         uses: edgarrc/action-7z@v1
         with:
-          args: 7z a -t7z -mx=9 GAMMA_Hide_Rad_Bar-${{ github.event.inputs.version }}.7z ./build_temp/gamedata -r
+          args: 7z a -t7z -mx=9 ${{env.REPO_NAME}}-${{ github.event.inputs.version }}.7z ./build_temp/gamedata -r
 
       - name: Clean up
         run: rm -rf fomod
@@ -50,6 +53,6 @@ jobs:
           name: Release ${{ github.event.inputs.version }}
           body: |
             ${{ github.event.inputs.description }}
-          files: GAMMA_Hide_Rad_Bar-${{ github.event.inputs.version }}.7z
+          files: ${{env.REPO_NAME}}-${{ github.event.inputs.version }}.7z
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
