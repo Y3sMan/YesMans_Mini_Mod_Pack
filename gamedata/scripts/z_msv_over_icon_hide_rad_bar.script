@@ -102,6 +102,7 @@ end
 
 
 local _eval_geiger_requirement 
+local _soulslike_on_death  --soulslike patch
 local feature_state = false
 local ENABLED = true
  
@@ -138,12 +139,36 @@ function override()
         end
         return _eval_geiger_requirement()
     end
+
+    -- Soulslike patch
+    -- after respawn, despite not having a geiger counter, rad bar does not hide
+    -- Quick fix for the symptom. Find the cause later
+    if soulslike_scenarios then 
+        info("Overriding soulslike_scenarios.SoulslikeScenarioLogic:OnDeath()")
+        _soulslike_on_death = soulslike_scenarios.SoulslikeScenarioLogic.OnDeath
+        function soulslike_scenarios.SoulslikeScenarioLogic:OnDeath()
+            IsBarHidden = true
+            ui_sidhud_mcm.deactivate_hud()
+
+            _soulslike_on_death(self)
+        end
+
+    end
 end
 
 function destroy()
+    Enabled = false
     feature_state = false
+    IsBarHidden = false
+    ui_sidhud_mcm.activate_hud()
+
     msv_over_radiation_status_mcm.eval_geiger_requirement = _eval_geiger_requirement
     info("Destroying eval_geiger_requirement override. Reverting to normal.")
+
+    if soulslike_scenarios then
+        soulslike_scenarios.SoulslikeScenarioLogic.OnDeath = _soulslike_on_death
+        info("Destroying soulslike_scenarios.SoulslikeScenarioLogic:OnDeath() override. Reverting to normal.")
+    end
 end
 
 
@@ -174,6 +199,12 @@ end
 function on_first_update()
     if ENABLED then
         override()
+        if IsBarHidden then
+            -- msv_over_radiation_status_mcm.eval_geiger_requirement()
+            ui_sidhud_mcm.deactivate_hud()
+        else
+            ui_sidhud_mcm.activate_hud()
+        end
     else
         destroy()
     end
@@ -181,14 +212,15 @@ end
 
 function on_game_start()
     _eval_geiger_requirement = msv_over_radiation_status_mcm.eval_geiger_requirement
-    if not ui_sidhud_mcm then return end
+
+    if not ui_sidhud_mcm then 
+
+        return
+    end
 
 	RegisterScriptCallback("load_state",load_state)
 	RegisterScriptCallback("save_state",save_state)
 	RegisterScriptCallback("actor_on_first_update",on_first_update)
- --   if ENABLED and ui_sidhud_mcm  then
-        -- override()
-  --  end
 end
 
 
