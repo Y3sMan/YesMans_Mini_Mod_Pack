@@ -1,5 +1,8 @@
 name: Create Release with 7z Archive
 
+env:
+  REPO_NAME: "Better Passive Artefact Detection"
+
 on:
   workflow_dispatch:
     inputs:
@@ -10,7 +13,7 @@ on:
       description:
         description: 'Release description'
         required: false
-        default: 'Automatic release - if you reading this that means its better to NOT download this version.'
+        default: ''
 
 jobs:
   release:
@@ -38,7 +41,7 @@ jobs:
       - name: Create 7z archive
         uses: edgarrc/action-7z@v1
         with:
-          args: 7z a -t7z -mx=9 GAMMA_True_Passive_Artefact_Detection-${{ github.event.inputs.version }}.7z ./build_temp/gamedata -r
+          args: 7z a -t7z -mx=9 ${{env.REPO_NAME}}-${{ github.event.inputs.version }}.7z ./build_temp/gamedata -r
 
       - name: Clean up
         run: rm -rf fomod
@@ -50,6 +53,6 @@ jobs:
           name: Release ${{ github.event.inputs.version }}
           body: |
             ${{ github.event.inputs.description }}
-          files: GAMMA_True_Passive_Artefact_Detection-${{ github.event.inputs.version }}.7z
+          files: ${{env.REPO_NAME}}-${{ github.event.inputs.version }}.7z
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
