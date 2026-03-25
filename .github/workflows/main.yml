@@ -1,58 +1,46 @@
-name: Create Release with 7z Archive
-
-env:
-  REPO_NAME: "No Gray Faction ID Patches"
-
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version tag'
-        required: true
-        default: 'auto-release'
-      description:
-        description: 'Release description'
-        required: false
-        default: 'Automatic release - if you reading this that means its better to NOT download this version.'
+  push:
+    tags:
+      - "*"
+
+
+name: Create and Publish Release
+
 
 jobs:
-  release:
+  build:
     name: Create Release
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Prepare build structure
-        run: |
-          mkdir -p build_temp
-          rsync -av \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='.gitattributes' \
-            --exclude='README.md' \
-            --exclude='version' \
-            ./* build_temp/
+        uses: actions/checkout@v2
       
-          echo "? files to build:"
-          ls -la build_temp/
+      - name: Get Repo Name
+        id: get_repo_name
+        run: |
+          # Extract repo name from GITHUB_REPOSITORY variable
+          repo_fullname="${{ github.repository }}"
+          repo_name="${repo_fullname##*/}"
+          echo "REPO_NAME=${repo_name}" >> $GITHUB_ENV
 
-      - name: Create 7z archive
-        uses: edgarrc/action-7z@v1
-        with:
-          args: 7z a -t7z -mx=9 ${{env.REPO_NAME}}-${{ github.event.inputs.version }}.7z ./build_temp/gamedata -r
+      - name: Get Tag Name
+        id: get_tag_name
+        run: |
+          # Extract tag or branch name from GITHUB_REF
+          tag_name="${{ github.ref }}"
+          tag_name="${tag_name#refs/tags/}"
+          echo "TAG_NAME=${tag_name}" >> $GITHUB_ENV
 
-      - name: Clean up
-        run: rm -rf fomod
+      - name: Create Release
+        run: |
+          echo "Repository Name: $REPO_NAME"
+          echo "Tag Name: $TAG_NAME"
+          git archive --format zip --prefix="${REPO_NAME}/" --output "${REPO_NAME}-${TAG_NAME}.zip" HEAD
+          echo "REPO_NAME=${REPO_NAME}" >> $GITHUB_ENV
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
 
-      - name: Create GitHub Release
+      - name: Upload Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.event.inputs.version }}
-          name: Release ${{ github.event.inputs.version }}
-          body: |
-            ${{ github.event.inputs.description }}
-          files: ${{env.REPO_NAME}}-${{ github.event.inputs.version }}.7z
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: "${{ env.REPO_NAME }}-${{ env.TAG_NAME }}.zip"
+
