@@ -4,10 +4,10 @@
     Version: 0.5
     Last Edit: 02-26-2026
 --]]
---#region ----------------------------------------
--- DEBUG
-----------------------------------------
+--#region DEBUG ----------------------------------------
+
 local modname = "Hide Rad Bar"
+local DEBUG = false
 
 local function print_table (tbl, indent)
     local g_type = type
@@ -47,39 +47,73 @@ local function print_table (tbl, indent)
     utils_data.debug_write(string.rep(" ", indent-2) .. "}")
 end
 
-local function log(log_type, output)
+
+--- Flattens a table of any nested status into a single string
+---@param o table
+---@return string 
+local function dump_table(o)
+   if type(o) == 'table' then
+      local s = '{ '
+      for k,v in pairs(o) do
+         if type(k) ~= 'number' then k = '"'..k..'"' end
+         s = s .. '['..k..'] = ' .. dump_table(v) .. ','
+      end
+      return s .. '} '
+   else
+      return tostring(o)
+   end
+end
+
+
+local function log(log_type, output, ...)
+    if not DEBUG then return end
     if not output then
         utils_data.debug_write("[" .. modname .. "] "..log_type..": ".."(nil)")
+        callstack()
     elseif (type(output) == "table") then
         utils_data.debug_write("[" .. modname .. "] "..log_type..": ")
-        print_table(output)
+        debug_print_table(output)
     else
-        utils_data.debug_write("[" .. modname .. "] "..log_type..": "..output)
+        -- pulled from _g.script
+        -- more var subbing
+        if (select('#', ...) >= 1) then
+            local i = 0
+            local p = { ... }
+            local function sr(a)
+                i = i + 1
+                if (type(p[i]) == 'userdata') then
+                    if (p[i].x and p[i].y) then
+                        return vec_to_str(p[i])
+                    end
+                    return 'userdata'
+                end
+                return tostring(p[i])
+            end
+            output = string.gsub(output, "%%s", sr)
+        end
+        printf("[" .. modname .. "] " .. log_type .. ": " .. output, ...)
     end
 end
 
-function debug(output)
-    log("DEBUG", output)
+function debug(output,...)
+    if not DEBUG then return end
+    log("DEBUG", output, ...)
 end
 
-function info(output)
-    log("INFO ", output)
+function info(output,...)
+    log("INFO ", output, ...)
 end
 
-function warn(output)
-    log("WARN ", output)
+function warn(output,...)
+    log("WARN ", output, ...)
 end
 
-function error(output)
-    log("ERROR", output)
+function error(output,...)
+    log("ERROR", output, ...)
 end
 
-function debug_tip(text, delay)
-    debug(text)
-
-    if not soulslike_mcm.show_debug_tips() then
-        return
-    end
+function debug_tip(text, delay,...)
+    debug(text, ...)
 
     local text = "[" .. modname .. "] "..tostring(text)
 
@@ -98,6 +132,71 @@ function debug_tip(text, delay)
 
     news_manager.send_tip(db.actor, text, nil, ico, delay)
 end
+
+local function debug_print_table(caption, tbl_options)
+    if not DEBUG then return end
+
+    if not tbl_options then 
+        info("debug_print_table: tbl_options is nil")
+        return 
+    end
+
+    local tbl = {}
+    if type(tbl_options[1]) ~="table" then
+        tbl = tbl_options
+    else
+        tbl = tbl_options[1]
+    end
+
+    local indent = tbl_options[2] or 0
+
+    debug(caption)
+    print_table(tbl, indent)
+end
+
+local function info_print_table(caption, tbl_options)
+    if not DEBUG then return end
+    if not tbl_options then 
+        info("info_print_table: tbl_options is nil")
+        return 
+    end
+
+    local tbl = {}
+
+    if type(tbl_options[1]) ~="table" then
+        tbl = tbl_options
+    else
+        tbl = tbl_options[1]
+    end
+
+    local indent = tbl_options[2] or 0
+
+    info(caption)
+    print_table(tbl, indent)
+end
+
+
+
+function open_specific_mcm(path)
+    if not DEBUG then return end
+
+    if ui_mcm then
+        exec_console_cmd("main_menu")
+
+        local function open_mcm_event(path)
+            ui_mcm.open_to(path)
+            return true
+        end
+
+
+        if demonized_time_events then
+            demonized_time_events.CreateTimeEvent("ym_open_mcm", "open_mcm",1, open_mcm_event, path)
+        else
+            CreateTimeEvent("ym_open_mcm", "open_mcm",1, open_mcm_event, path)
+        end
+    end
+end
+
 --#endregion------------------------------------------------------------------
 
 
