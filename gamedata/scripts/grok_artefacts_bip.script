@@ -3,7 +3,7 @@
 --#region DEBUG ----------------------------------------
 
 local modname = "Passive Artefact Detector"
-local DEBUG = true
+local DEBUG = false 
 
 local function print_table (tbl, indent)
 	local g_type = type
