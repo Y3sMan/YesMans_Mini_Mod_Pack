@@ -45,7 +45,7 @@ local function print_table (tbl, indent)
     end
 
     utils_data.debug_write(string.rep(" ", indent-2) .. "}")
-end
+end	
 
 
 --- Flattens a table of any nested status into a single string
@@ -268,6 +268,14 @@ function destroy()
         soulslike_scenarios.SoulslikeScenarioLogic.OnDeath = _soulslike_on_death
         info("Destroying soulslike_scenarios.SoulslikeScenarioLogic:OnDeath() override. Reverting to normal.")
     end
+
+    -- clean up save data
+    local mdata = alife_storage_manager:get_state() or {}
+
+    if (not mdata) or (not mdata.hideradbar) then return end
+
+    mdata.hideradbar.IsBarHidden = nil
+    mdata.hideradbar.ENABLED = nil
 end
 
 
