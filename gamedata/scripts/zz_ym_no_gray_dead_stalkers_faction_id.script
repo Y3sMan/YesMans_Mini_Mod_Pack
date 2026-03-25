@@ -1,9 +1,10 @@
 
 
---#region DEBUG---------------------------------------
+
+--#region DEBUG ----------------------------------------
 
 local modname = "FACTION ID Gray Dead Stalkers Monkey Patch"
-local DEBUG = true
+local DEBUG = false
 
 local function print_table (tbl, indent)
     local g_type = type
@@ -43,13 +44,16 @@ local function print_table (tbl, indent)
     utils_data.debug_write(string.rep(" ", indent-2) .. "}")
 end	
 
--- Flattens a table of any nested status into a single string
+
+--- Flattens a table of any nested status into a single string
+---@param o table
+---@return string 
 local function dump_table(o)
    if type(o) == 'table' then
       local s = '{ '
       for k,v in pairs(o) do
          if type(k) ~= 'number' then k = '"'..k..'"' end
-         s = s .. '['..k..'] = ' .. dbg_dump(v) .. ','
+         s = s .. '['..k..'] = ' .. dump_table(v) .. ','
       end
       return s .. '} '
    else
@@ -65,7 +69,7 @@ local function log(log_type, output, ...)
         callstack()
     elseif (type(output) == "table") then
         utils_data.debug_write("[" .. modname .. "] "..log_type..": ")
-        print_table(output)
+        debug_print_table(output)
     else
         -- pulled from _g.script
         -- more var subbing
@@ -89,7 +93,7 @@ local function log(log_type, output, ...)
 end
 
 function debug(output,...)
-    if not DEV_DEBUG then return end
+    if not DEBUG then return end
     log("DEBUG", output, ...)
 end
 
@@ -125,6 +129,71 @@ function debug_tip(text, delay,...)
 
     news_manager.send_tip(db.actor, text, nil, ico, delay)
 end
+
+local function debug_print_table(caption, tbl_options)
+    if not DEBUG then return end
+
+    if not tbl_options then 
+        info("debug_print_table: tbl_options is nil")
+        return 
+    end
+
+    local tbl = {}
+    if type(tbl_options[1]) ~="table" then
+        tbl = tbl_options
+    else
+        tbl = tbl_options[1]
+    end
+
+    local indent = tbl_options[2] or 0
+
+    debug(caption)
+    print_table(tbl, indent)
+end
+
+local function info_print_table(caption, tbl_options)
+    if not DEBUG then return end
+    if not tbl_options then 
+        info("info_print_table: tbl_options is nil")
+        return 
+    end
+
+    local tbl = {}
+
+    if type(tbl_options[1]) ~="table" then
+        tbl = tbl_options
+    else
+        tbl = tbl_options[1]
+    end
+
+    local indent = tbl_options[2] or 0
+
+    info(caption)
+    print_table(tbl, indent)
+end
+
+
+
+function open_specific_mcm(path)
+    if not DEBUG then return end
+
+    if ui_mcm then
+        exec_console_cmd("main_menu")
+
+        local function open_mcm_event(path)
+            ui_mcm.open_to(path)
+            return true
+        end
+
+
+        if demonized_time_events then
+            demonized_time_events.CreateTimeEvent("ym_open_mcm", "open_mcm",1, open_mcm_event, path)
+        else
+            CreateTimeEvent("ym_open_mcm", "open_mcm",1, open_mcm_event, path)
+        end
+    end
+end
+
 --#endregion------------------------------------------------------------------
 
 --[[
