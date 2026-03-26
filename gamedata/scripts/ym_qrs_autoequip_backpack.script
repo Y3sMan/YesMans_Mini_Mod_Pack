@@ -289,7 +289,7 @@ function on_item_to_ruck(obj)
 end
 
 function on_game_start()
-    RegisterScriptCallback("actor_on_item_to_slot", on_item_to_slot)
-    RegisterScriptCallback("actor_on_item_drop", on_item_to_ruck)
-    RegisterScriptCallback("actor_on_item_to_ruck", on_item_to_ruck)
+    -- RegisterScriptCallback("actor_on_item_to_slot", on_item_to_slot)
+    -- RegisterScriptCallback("actor_on_item_drop", on_item_to_ruck)
+    -- RegisterScriptCallback("actor_on_item_to_ruck", on_item_to_ruck)
 end
