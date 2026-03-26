@@ -295,11 +295,62 @@ function item_backpack.actor_on_item_take_from_box(box, obj)
     _actor_on_item_take_from_box(box, obj)
 end
 
+local _actor_on_item_take_from_box = soulslike.actor_on_item_take_from_box
+function soulslike.actor_on_item_take_from_box(box, obj)
+    if (box:section() == "inv_backpack") then
+        if (box:is_inv_box_empty()) then
+            local mdata = alife_storage_manager:get_state() or {}
+            if mdata then
+                if mdata.ym_qrs_equip_backpack then
+                    local b_sec = mdata.ym_qrs_equip_backpack.last_backpack or nil
+                    if b_sec then
+                        if type(b_sec) == "table" then
+                            debug_print_table("souls pack", b_sec)
+                        else
+                            debug("souls pack = %s", b_sec)
+                        end
 
-function on_item_to_slot(obj)
+                        -- reset retries
+                        current_retry = 1
+                        dte.CreateTimeEvent("ym_qrs_equip_backpack_soulslike", "ym_qrs_equip_backpack_soulslike", 0,
+                            equip_backpack, b_sec)
+                        mdata.ym_qrs_equip_backpack.last_backpack = nil
+                    end
+                end
+            end
+        end
+    end
+
+    _actor_on_item_take_from_box(box, obj)
 end
 
-function on_item_to_ruck(obj)
+local _actor_on_before_death = soulslike.actor_on_before_death
+function soulslike.actor_on_before_death(who, flags)
+    local has_backpack = db.actor and db.actor:item_in_slot(backpack_slot) or nil
+    if has_backpack then
+        local mdata = alife_storage_manager:get_state() or {}
+        local b_sec = has_backpack:section() or nil
+        local b_id = has_backpack:id() or nil
+
+        if mdata then
+            if not mdata.ym_qrs_equip_backpack then
+                mdata.ym_qrs_equip_backpack = {}
+            end
+
+            local t = {}
+            if b_sec then
+                t["last_backpack"] = b_sec
+                debug("Saving last backpack = %s", b_sec)
+            else
+                t["last_backpack"] = nil
+                debug("could not find last backpack to save")
+            end
+
+            mdata.ym_qrs_equip_backpack = t
+        end
+    end
+
+    _actor_on_before_death(who, flags)
 end
 
 function on_game_start()
