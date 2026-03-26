@@ -8,7 +8,7 @@
 
  --#region DEBUG ----------------------------------------
 
-local modname = "QRS Auto Equip Backpack"
+local modname = "QRS Auto Equip Backpack: Soulslike Patch"
 local DEBUG = true
 
 local function print_table (tbl, indent)
@@ -203,6 +203,8 @@ end
 local _core = ym_qrs_autoequip_backpack
 local dte = demonized_time_events
 
+local backpack_slot = 13
+
 local _actor_on_item_take_from_box = soulslike.actor_on_item_take_from_box
 function soulslike.actor_on_item_take_from_box(box, obj)
     if (box:section() == "inv_backpack") then
@@ -233,6 +235,8 @@ end
 
 local _actor_on_before_death = soulslike.actor_on_before_death
 function soulslike.actor_on_before_death(who, flags)
+    if not db.actor then _actor_on_before_death(who, flags) return end
+
     local has_backpack = db.actor and db.actor:item_in_slot(backpack_slot) or nil
     if has_backpack then
         local mdata = alife_storage_manager:get_state() or {}
