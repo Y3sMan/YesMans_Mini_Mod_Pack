@@ -228,6 +228,11 @@ function item_backpack.actor_on_item_take_from_box(box, obj)
             if mdata then
                 if mdata.player_created_stashes and mdata.player_created_stashes[b_id] then
                     b_sec = mdata.player_created_stashes[b_id]
+                elseif soulslike then
+                    local souls_state = soulslike.get_soulslike_state()
+                    if souls_state and souls_state.created_stashes then 
+                        b_sec = souls_state.created_stashes[b_id] or nil
+                    end
                 end
             end
 
