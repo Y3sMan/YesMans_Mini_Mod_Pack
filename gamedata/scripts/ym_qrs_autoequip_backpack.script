@@ -210,6 +210,11 @@ local dte = demonized_time_events
 -- state variables
 local backpack_slot = 13
 
+
+--------------------------------------------
+-- QRS Patch
+--------------------------------------------
+
 local _actor_on_item_take_from_box = item_backpack.actor_on_item_take_from_box
 function item_backpack.actor_on_item_take_from_box(box, obj)
 	if (box:section() == "inv_backpack") then
@@ -228,21 +233,36 @@ function item_backpack.actor_on_item_take_from_box(box, obj)
 
             -- attempt to equip it
 
+            local current_retry = 1
+            local max_retry = 5
+
             ---Time event function to equip backpack
             ---@param backpack string: The section of the backpack
             local function equip_backpack(backpack)
                 if not db.actor then return true end 
-                debug("attempting to equip backpack %s", backpack)
+
+                local backpackFound = false
+
+                debug("attempting to equip backpack %s on attempt %s", backpack, current_retry)
 
                 -- check if backpack is an object in inventory
                 local b_obj = db.actor:object(backpack)
                 if b_obj then 
                     debug("backpack exists in inv")
                     db.actor:move_to_slot(b_obj, backpack_slot)
+                    backpackFound = true
                 end
 
 
-                return true
+                -- retry up to max_retry times
+                -- if we exceed max_retry, just cancel the whole time event
+                if current_retry >= max_retry then
+                    backpackFound = true
+                end
+
+                current_retry = current_retry + 1
+
+                return backpackFound
             end
 
 
