@@ -3,13 +3,12 @@
     Author:	YesMan
     Created:	26-03-2026 (dd-mm-yyyy)
     Last Edit:	26-03-2026 (dd-mm-yyyy)
-    Version:	v2.0
+    Version:	v1.0
 ]]
 
  --#region DEBUG ----------------------------------------
- 
 
-local modname = "QRS Auto Equip Backpack"
+local modname = "QRS Auto Equip Backpack: Soulslike Patch"
 local DEBUG = true
 
 local function print_table (tbl, indent)
@@ -199,110 +198,77 @@ function open_specific_mcm(path)
     end
 end
 
-
 --#endregion------------------------------------------------------------------
 
-
--- imports
+local _core = ym_qrs_autoequip_backpack
 local dte = demonized_time_events
 
--- state variables
 local backpack_slot = 13
 
--- kill yourself on K
-function on_key_press(key)
-    if key == DIK_keys.DIK_K then
-        db.actor:change_health(-2)
-    end
-end
-
---------------------------------------------
--- QRS Patch
---------------------------------------------
-
-
-current_retry = 1
-max_retry = 5
-
----Time event function to equip backpack
----@param backpack_sec string section: The section of the backpack
----@return boolean repeat : false returns will repeat the time event. True returns cease the time event after execution
-function equip_backpack(backpack_sec)
-    if not db.actor then return true end
-    if (not backpack_sec) or (type(backpack_sec) ~= "string") then
-        error("equip_backpack: backpack parameter is nil or not a string; type = %s", backpack_sec and type(backpack_sec))
-        return true
-    end
-
-    local backpackFound = false
-
-    debug("attempting to equip backpack %s on attempt %s", backpack_sec, current_retry)
-
-    -- check if backpack is an object in inventory
-    local b_obj = db.actor:object(backpack_sec)
-    if b_obj then
-        debug("backpack exists in inv")
-        db.actor:move_to_slot(b_obj, backpack_slot)
-        backpackFound = true
-    end
-
-
-    -- retry up to max_retry times
-    -- if we exceed max_retry, just cancel the whole time event
-    if current_retry >= max_retry then
-        backpackFound = true
-    end
-
-    current_retry = current_retry + 1
-
-    return backpackFound
-end
-
-local _actor_on_item_take_from_box = item_backpack.actor_on_item_take_from_box
-function item_backpack.actor_on_item_take_from_box(box, obj)
-	if (box:section() == "inv_backpack") then
-		if (box:is_inv_box_empty()) then
+local _actor_on_item_take_from_box = soulslike.actor_on_item_take_from_box
+function soulslike.actor_on_item_take_from_box(box, obj)
+    if (box:section() == "inv_backpack") then
+        if (box:is_inv_box_empty()) then
             local mdata = alife_storage_manager:get_state() or {}
-
-            local b_id = box:id()
-            local b_sec = nil
-
-            -- retrieve backpack section from qrs cache
             if mdata then
-                if mdata.player_created_stashes and mdata.player_created_stashes[b_id] then
-                    b_sec = mdata.player_created_stashes[b_id]
-                elseif soulslike then
-                    local souls_state = soulslike.get_soulslike_state()
-                    if souls_state and souls_state.created_stashes then 
-                        b_sec = souls_state.created_stashes[b_id] or nil
+                if mdata.ym_qrs_equip_backpack then
+                    local b_sec = mdata.ym_qrs_equip_backpack.last_backpack or nil
+                    if b_sec then
+                        if type(b_sec) == "table" then
+                            debug_print_table("souls pack", b_sec)
+                        else
+                            debug("souls pack = %s", b_sec)
+                        end
+
+                        -- reset retries
+                        current_retry = 1
+                        dte.CreateTimeEvent("ym_qrs_equip_backpack_soulslike", "ym_qrs_equip_backpack_soulslike", 0, _core.equip_backpack, b_sec)
+                        mdata.ym_qrs_equip_backpack.last_backpack = nil
                     end
                 end
             end
-
-            -- attempt to equip it
-
-            -- reset retries
-            current_retry = 1
-
-            if dte then
-                dte.CreateTimeEvent("ym_qrs_equip_backpack", "ym_qrs_equip_backpack", 0, equip_backpack, b_sec)
-            else
-            end
-
         end
     end
+
     _actor_on_item_take_from_box(box, obj)
 end
 
----Cleanup savedata created by this mod
----
----Currently empty, as of v2.0. Defined here for monkey-patching by modules
-function destroy()
+local _actor_on_before_death = soulslike.actor_on_before_death
+function soulslike.actor_on_before_death(who, flags)
+    if not db.actor then _actor_on_before_death(who, flags) return end
+
+    local has_backpack = db.actor and db.actor:item_in_slot(backpack_slot) or nil
+    if has_backpack then
+        local mdata = alife_storage_manager:get_state() or {}
+        local b_sec = has_backpack:section() or nil
+        local b_id = has_backpack:id() or nil
+
+        if mdata then
+            if not mdata.ym_qrs_equip_backpack then
+                mdata.ym_qrs_equip_backpack = {}
+            end
+
+            local t = {}
+            if b_sec then
+                t["last_backpack"] = b_sec
+                debug("Saving last backpack = %s", b_sec)
+            else
+                t["last_backpack"] = nil
+                debug("could not find last backpack to save")
+            end
+
+            mdata.ym_qrs_equip_backpack = t
+        end
+    end
+
+    _actor_on_before_death(who, flags)
 end
 
-function on_game_start()
-    -- RegisterScriptCallback("actor_on_item_to_slot", on_item_to_slot)
-    -- RegisterScriptCallback("actor_on_item_drop", on_item_to_ruck)
-    -- RegisterScriptCallback("actor_on_item_to_ruck", on_item_to_ruck)
-    RegisterScriptCallback("on_key_press", on_key_press)
+local _destroy = _core.destroy
+function ym_qrs_autoequip_backpack.destroy()
+    _destroy()
+    local mdata = alife_storage_manager:get_state() or {}
+    if mdata and mdata.ym_qrs_equip_backpack then
+        mdata.ym_qrs_equip_backpack = nil
+    end
 end
