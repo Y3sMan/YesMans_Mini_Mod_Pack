@@ -1,0 +1,382 @@
+--[[
+    Author: YesMan
+    Version: 1.0
+    Readme:
+        A small script to auto-equip a placed backpack, if you aren't wearing a pack
+        Useful for an expedited escape with your qrs
+--]]
+
+
+
+--#region DEBUG ----------------------------------------
+
+local modname = "YM QRS AutoEquip Backpack"
+local DEBUG = false
+
+local function print_table (tbl, indent)
+    local g_type = type
+    if not indent then
+        indent = 0
+    end
+
+    utils_data.debug_write(string.rep(" ", indent) .. "{")
+
+    indent = indent + 2
+
+    if (g_type(tbl) == "userdata") then        
+        utils_data.debug_write("<userdata>,\n")
+    else
+        for k, v in pairs(tbl) do
+            local toprint = string.rep(" ", indent)
+
+            if (g_type(k) == "number") then
+                toprint = toprint .. "[" .. k .. "] = "
+            elseif (g_type(k) == "string") then
+                toprint = toprint  .. k ..  " = "
+            end
+
+            if (g_type(v) == "number") then
+                utils_data.debug_write(toprint .. v .. ",")
+            elseif (g_type(v) == "string") then
+                utils_data.debug_write(toprint .. "\"" .. v .. "\",")
+            elseif (g_type(v) == "table") then
+                utils_data.debug_write(toprint)
+                print_table(v, indent + 2)
+            else
+                utils_data.debug_write(toprint .. "\"" .. tostring(v) .. "\",")
+            end
+        end
+    end
+
+    utils_data.debug_write(string.rep(" ", indent-2) .. "}")
+end	
+
+
+--- Flattens a table of any nested status into a single string
+---@param o table
+---@return string 
+local function dump_table(o)
+   if type(o) == 'table' then
+      local s = '{ '
+      for k,v in pairs(o) do
+         if type(k) ~= 'number' then k = '"'..k..'"' end
+         s = s .. '['..k..'] = ' .. dump_table(v) .. ','
+      end
+      return s .. '} '
+   else
+      return tostring(o)
+   end
+end
+
+
+local function log(log_type, output, ...)
+    if not DEBUG then return end
+    if not output then
+        utils_data.debug_write("[" .. modname .. "] "..log_type..": ".."(nil)")
+        callstack()
+    elseif (type(output) == "table") then
+        utils_data.debug_write("[" .. modname .. "] "..log_type..": ")
+        debug_print_table(output)
+    else
+        -- pulled from _g.script
+        -- more var subbing
+        if (select('#', ...) >= 1) then
+            local i = 0
+            local p = { ... }
+            local function sr(a)
+                i = i + 1
+                if (type(p[i]) == 'userdata') then
+                    if (p[i].x and p[i].y) then
+                        return vec_to_str(p[i])
+                    end
+                    return 'userdata'
+                end
+                return tostring(p[i])
+            end
+            output = string.gsub(output, "%%s", sr)
+        end
+        printf("[" .. modname .. "] " .. log_type .. ": " .. output, ...)
+    end
+end
+
+function debug(output,...)
+    if not DEBUG then return end
+    log("DEBUG", output, ...)
+end
+
+function info(output,...)
+    log("INFO ", output, ...)
+end
+
+function warn(output,...)
+    log("WARN ", output, ...)
+end
+
+function error(output,...)
+    log("ERROR", output, ...)
+end
+
+function debug_tip(text, delay,...)
+    debug(text, ...)
+
+    local text = "[" .. modname .. "] "..tostring(text)
+
+    if not db.actor then
+        return
+    end
+    
+    local ico = "ui_inGame2_Dengi_otdani"
+    local text_color = utils_xml.get_color("pda_white")
+
+    text = text_color .. text
+
+    if delay == nil then
+        delay = 6000
+    end
+
+    news_manager.send_tip(db.actor, text, nil, ico, delay)
+end
+
+local function debug_print_table(caption, tbl_options)
+    if not DEBUG then return end
+
+    if not tbl_options then 
+        info("debug_print_table: tbl_options is nil")
+        return 
+    end
+
+    local tbl = {}
+    if type(tbl_options[1]) ~="table" then
+        tbl = tbl_options
+    else
+        tbl = tbl_options[1]
+    end
+
+    local indent = tbl_options[2] or 0
+
+    debug(caption)
+    print_table(tbl, indent)
+end
+
+local function info_print_table(caption, tbl_options)
+    if not DEBUG then return end
+    if not tbl_options then 
+        info("info_print_table: tbl_options is nil")
+        return 
+    end
+
+    local tbl = {}
+
+    if type(tbl_options[1]) ~="table" then
+        tbl = tbl_options
+    else
+        tbl = tbl_options[1]
+    end
+
+    local indent = tbl_options[2] or 0
+
+    info(caption)
+    print_table(tbl, indent)
+end
+
+
+
+function open_specific_mcm(path)
+    if not DEBUG then return end
+
+    if ui_mcm then
+        exec_console_cmd("main_menu")
+
+        local function open_mcm_event(path)
+            ui_mcm.open_to(path)
+            return true
+        end
+
+
+        if demonized_time_events then
+            demonized_time_events.CreateTimeEvent("ym_open_mcm", "open_mcm",1, open_mcm_event, path)
+        else
+            CreateTimeEvent("ym_open_mcm", "open_mcm",1, open_mcm_event, path)
+        end
+    end
+end
+
+--#endregion------------------------------------------------------------------
+
+local curr_b = nil
+local soulslike_curr_b = nil
+local b_id = nil
+local _on_take_from_box = item_backpack.actor_on_item_take_from_box
+local _soulslike_on_death 
+local dte = demonized_time_events
+
+
+function item_backpack.actor_on_item_take_from_box(box,obj)
+-- function actor_on_item_take_from_box(box, obj)
+	if (box:section() == "inv_backpack") then
+            local b_id = box:id()
+
+			local m_data = alife_storage_manager.get_state()
+
+			if (m_data.player_created_stashes and m_data.player_created_stashes[b_id]) then 
+                curr_b = m_data.player_created_stashes[b_id] or nil
+                debug("curr_b = %s" , curr_b)
+            end
+
+            -- if (not curr_b) and soulslike_curr_b then
+            --     curr_b = soulslike_curr_b    
+            -- end
+		if (box:is_inv_box_empty()) then
+
+            local has_backpack = db.actor:item_in_slot(13)
+            local retry_count = 0
+            local max_retries = 5
+
+            local function equip_backpack()
+                local isFound = false
+                retry_count = retry_count + 1
+                debug("Backpack Search attempt ".. retry_count)
+                local function search(tmp, itm)
+                    debug("obj sec = " .. tostring(itm:section()))
+                    if curr_b and itm and (curr_b == itm:section()) then
+                        debug("found the backpack")
+                        isFound = true
+                        db.actor:move_to_slot(itm, 13)
+                        curr_b = nil
+                        soulslike_curr_b = nil
+                        return isFound
+                    end
+                end
+
+                db.actor:iterate_inventory(search, nil)
+
+                debug("backpack isFound = %s", isFound)
+                if retry_count >= max_retries then
+                    curr_b = nil
+                    soulslike_curr_b = nil
+                    return true
+                end
+
+                return isFound 
+            end
+
+            if not has_backpack then
+                dte.CreateTimeEvent("ym_equip_backpack_qrs", "ym_qrs_equip", 0, equip_backpack)
+            end
+        end
+    end
+    _on_take_from_box(box, obj)
+end
+
+function override()
+    -- soulslike patch
+    -- grab the section of the equipped backpack before its thrown into the stash of the dead actor
+    info("Starting Overrides")
+    if soulslike_scenarios then
+        _soulslike_on_death = soulslike_scenarios.SoulslikeScenarioLogic.OnDeath
+        info("Attempting to overriding soulslike_scenarios.SoulslikeScenarioLogic:onDeath()")
+        function soulslike_scenarios.SoulslikeScenarioLogic:OnDeath()  
+            info("function soulslike_scenarios.SoulslikeScenarioLogic:onDeath()")
+            info("Running override logic first")
+            local has_backpack = db.actor:item_in_slot(13)
+            if has_backpack then
+                local b_id =has_backpack:id()
+                -- soulslike_curr_b = b_id or nil
+                curr_b = has_backpack:section() or nil
+                printf("onDeath(): backpack  = " .. tostring(curr_b))
+            end
+
+            info("Running original function next")
+            _soulslike_on_death(self)
+        end
+
+        -- local _soulslike_handle_items_and_respawn = soulslike_scenarios.HandleItemsAndRespawn
+
+        -- info("Attempting to overriding soulslike_scenarios.SoulslikeScenarioLogic:HandleItemsAndRespawn()")
+        -- function soulslike_scenarios.SoulslikeScenarioLogic:HandleItemsAndRespawn()
+        --     printf("function soulslike_scenarios.SoulslikeScenarioLogic:HandleItemsAndRespawn()")
+        --     info("Running override logic first")
+        --     local has_backpack = db.actor:item_in_slot(13)
+        --     if has_backpack then
+        --         local b_id =has_backpack:id()
+        --         soulslike_curr_b = b_id or nil
+        --         debug("HandleItemsAndRespawn(): backpack id = ", soulslike_curr_b)
+        --     end
+
+        --     info("Running original function next")
+        --     _soulslike_handle_items_and_respawn(self)
+        -- end
+
+
+        -- info("Attempting to overriding soulslike_scenario_logic_factory.create_new()")
+        -- local _create_new = soulslike_scenario_logic_factory.create_new
+        -- function soulslike_scenario_logic_factory.create_new(hits)
+        --     printf("Overriding create_new()")
+        --     printf("Saving player backpack id")
+
+        --     local has_backpack = db.actor:item_in_slot(13)
+        --     if has_backpack then
+        --         local b_id = has_backpack:id()
+        --         soulslike_curr_b = b_id and has_backpack:section() or nil
+        --         printf("create_new(): backpack id = " .. tostring(soulslike_curr_b))
+        --     end
+        --     return _create_new(hits)
+        -- end
+
+    end
+end
+
+function destroy()
+    if soulslike_scenarios then soulslike_scenarios.SoulslikeScenarioLogic.OnDeath = _soulslike_on_death end
+
+    local m_data = alife_storage_manager.get_state()
+    m_data.ym_equip_backpack_qrs = nil
+
+end
+
+function on_first_update()
+    -- override()
+
+    local has_backpack = db.actor:item_in_slot(13)
+    curr_b = has_backpack:section() or nil
+end
+
+function actor_item_to_slot(obj)
+	if (not has_alife_info("BAR_ARENA_FIGHT")) then
+        local is_backpack = obj and obj:section() and SYS_GetParam(0, obj:section(), "kind") == "i_backpack"
+        if is_backpack then
+            debug("equipping backpack")
+            curr_b = obj:section()
+            debug("last backpack = %s", curr_b)
+        end
+    end
+end
+
+
+-- debug testing helper
+-- kill yourself on K
+function on_key_press(key)
+    if key == DIK_keys.DIK_K then
+        db.actor:change_health(-2)
+    end
+end
+
+function load_state(mdata)
+    curr_b = mdata.ym_equip_backpack_qrs or curr_b
+end
+
+function save_state(mdata)
+    mdata.ym_equip_backpack_qrs = curr_b or nil
+end
+
+function on_game_start()
+    override()
+    RegisterScriptCallback("load_state", load_state)
+    RegisterScriptCallback("save_state", save_state)
+	-- RegisterScriptCallback("actor_on_item_take_from_box",actor_on_item_take_from_box)
+    RegisterScriptCallback("actor_on_first_update", on_first_update)
+    RegisterScriptCallback("actor_item_to_slot", actor_item_to_slot)
+    if DEV_DEBUG then
+        RegisterScriptCallback("on_key_press", on_key_press)
+    end
+end
