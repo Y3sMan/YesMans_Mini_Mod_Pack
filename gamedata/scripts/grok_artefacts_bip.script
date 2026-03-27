@@ -1,0 +1,342 @@
+
+
+--#region DEBUG ----------------------------------------
+
+local modname = "Passive Artefact Detector"
+local DEBUG = false 
+
+local function print_table (tbl, indent)
+	local g_type = type
+	if not indent then
+		indent = 0
+	end
+
+	utils_data.debug_write(string.rep(" ", indent) .. "{")
+
+	indent = indent + 2
+
+	if (g_type(tbl) == "userdata") then        
+		utils_data.debug_write("<userdata>,\n")
+	else
+		for k, v in pairs(tbl) do
+			local toprint = string.rep(" ", indent)
+
+			if (g_type(k) == "number") then
+				toprint = toprint .. "[" .. k .. "] = "
+			elseif (g_type(k) == "string") then
+				toprint = toprint  .. k ..  " = "
+			end
+
+			if (g_type(v) == "number") then
+				utils_data.debug_write(toprint .. v .. ",")
+			elseif (g_type(v) == "string") then
+				utils_data.debug_write(toprint .. "\"" .. v .. "\",")
+			elseif (g_type(v) == "table") then
+				utils_data.debug_write(toprint)
+				print_table(v, indent + 2)
+			else
+				utils_data.debug_write(toprint .. "\"" .. tostring(v) .. "\",")
+			end
+		end
+	end
+
+	utils_data.debug_write(string.rep(" ", indent-2) .. "}")
+end	
+
+
+--- Flattens a table of any nested status into a single string
+---@param o table
+---@return string 
+local function dump_table(o)
+   if type(o) == 'table' then
+	  local s = '{ '
+	  for k,v in pairs(o) do
+		 if type(k) ~= 'number' then k = '"'..k..'"' end
+		 s = s .. '['..k..'] = ' .. dump_table(v) .. ','
+	  end
+	  return s .. '} '
+   else
+	  return tostring(o)
+   end
+end
+
+
+local function log(log_type, output, ...)
+	if not DEBUG then return end
+	if not output then
+		utils_data.debug_write("[" .. modname .. "] "..log_type..": ".."(nil)")
+		callstack()
+	elseif (type(output) == "table") then
+		utils_data.debug_write("[" .. modname .. "] "..log_type..": ")
+		debug_print_table(output)
+	else
+		-- pulled from _g.script
+		-- more var subbing
+		if (select('#', ...) >= 1) then
+			local i = 0
+			local p = { ... }
+			local function sr(a)
+				i = i + 1
+				if (type(p[i]) == 'userdata') then
+					if (p[i].x and p[i].y) then
+						return vec_to_str(p[i])
+					end
+					return 'userdata'
+				end
+				return tostring(p[i])
+			end
+			output = string.gsub(output, "%%s", sr)
+		end
+		printf("[" .. modname .. "] " .. log_type .. ": " .. output, ...)
+	end
+end
+
+function debug(output,...)
+	if not DEBUG then return end
+	log("DEBUG", output, ...)
+end
+
+function info(output,...)
+	log("INFO ", output, ...)
+end
+
+function warn(output,...)
+	log("WARN ", output, ...)
+end
+
+function error(output,...)
+	log("ERROR", output, ...)
+end
+
+function debug_tip(text, delay,...)
+	debug(text, ...)
+
+	local text = "[" .. modname .. "] "..tostring(text)
+
+	if not db.actor then
+		return
+	end
+	
+	local ico = "ui_inGame2_Dengi_otdani"
+	local text_color = utils_xml.get_color("pda_white")
+
+	text = text_color .. text
+
+	if delay == nil then
+		delay = 6000
+	end
+
+	news_manager.send_tip(db.actor, text, nil, ico, delay)
+end
+
+local function debug_print_table(caption, tbl_options)
+	if not DEBUG then return end
+
+	if not tbl_options then 
+		info("debug_print_table: tbl_options is nil")
+		return 
+	end
+
+	local tbl = {}
+	if type(tbl_options[1]) ~="table" then
+		tbl = tbl_options
+	else
+		tbl = tbl_options[1]
+	end
+
+	local indent = tbl_options[2] or 0
+
+	debug(caption)
+	print_table(tbl, indent)
+end
+
+local function info_print_table(caption, tbl_options)
+	if not DEBUG then return end
+	if not tbl_options then 
+		info("info_print_table: tbl_options is nil")
+		return 
+	end
+
+	local tbl = {}
+
+	if type(tbl_options[1]) ~="table" then
+		tbl = tbl_options
+	else
+		tbl = tbl_options[1]
+	end
+
+	local indent = tbl_options[2] or 0
+
+	info(caption)
+	print_table(tbl, indent)
+end
+
+
+
+function open_specific_mcm(path)
+	if not DEBUG then return end
+
+	if ui_mcm then
+		exec_console_cmd("main_menu")
+
+		local function open_mcm_event(path)
+			ui_mcm.open_to(path)
+			return true
+		end
+
+
+		if demonized_time_events then
+			demonized_time_events.CreateTimeEvent("ym_open_mcm", "open_mcm",1, open_mcm_event, path)
+		else
+			CreateTimeEvent("ym_open_mcm", "open_mcm",1, open_mcm_event, path)
+		end
+	end
+end
+
+--#endregion------------------------------------------------------------------
+
+get_config = grok_artefacts_bip_mcm.get_config
+
+local detectors = {
+	["detector_simple"] = 1,
+	["detector_advanced"] = 2,
+	["detector_grizzly"] = 3,
+	["detector_elite"] = 3,	
+	["detector_scientific"] = 3,	
+}
+
+-- add junk artefacts as well
+local af_by_tiers = { }
+
+function actor_on_first_update()	
+	actor_status.add_indicator("Artefact"       	   	, { index= 16 	,typ= "state"	,functor= {"grok_artefacts_bip","get_artefact",true}	                    ,icon= "ui\\alticons\\ArtefactIndicator.dds"           ,background= "ui\\alticons\\bg1.dds"	,anim_icon= true	,anim_bk= false  })
+end
+
+local af_detection_dist = 500
+local delay = 921
+local trigger = 0
+function actor_on_update()
+	local obj_det = db.actor:active_detector()
+	
+	enabled = get_config("enabled")
+
+	if not enabled then return end
+	
+    tg = time_global()
+    
+    if trigger == 0 then
+        grok_delay = tg + delay
+        trigger = 1
+    end
+    
+    if (trigger == 1 and tg > grok_delay) then
+        trigger = 0
+		available_det_tier = 0
+
+-- Detector works passively at half the distance
+		local det = db.actor:active_detector()
+		
+		if not det then
+			det = db.actor:item_in_slot(9)
+		end
+		
+		if det then
+			local sec = det:section()
+			if sec and detectors[sec] then
+				available_det_tier = detectors[sec]
+			end
+		end
+
+-- Disabled, if enabled then detectors work from backpack, but this method is heavy with large inventories
+--		db.actor:iterate_inventory(function(npc, item)
+--			local sec = item:section()
+--			if sec and detectors[sec] then
+--				if available_det_tier and available_det_tier < detectors[sec] then
+--					available_det_tier = detectors[sec]
+--					printf(available_det_tier)
+--				end
+--			end
+--		end, actor)
+		
+
+
+		-- -- new method to make detector work from backpack
+		-- -- YesMan
+		for det_k, v in pairs(detectors) do
+			local obj_det = db.actor:object(det_k)
+			if obj_det then
+				local det_sec = obj_det:section()
+				if det_sec then
+					debug("detector in inv = " .. tostring(det_sec))
+					if detectors[det_sec] then
+						debug("det_sec in table")
+						if available_det_tier < v then
+							debug("old tier = " .. tostring(available_det_tier))
+							debug("new tier = " .. tostring(v))
+							available_det_tier = v
+						end
+					end
+				end
+			end
+		end
+
+
+		local play_sound = false
+--		local af_detected = false
+		
+		if zz_item_artefact.dist_t then
+			for af,dist in pairs(zz_item_artefact.dist_t) do		
+				if dist and dist >= 0.1 then
+					if af and af_detection_dist and available_det_tier and af_by_tiers[af] then				
+						debug("af teir = " .. tostring(af_by_tiers[af]) .. " and available_det_tier = " .. tostring(available_det_tier))
+						if (tonumber(af_by_tiers[af]) <= available_det_tier) and (dist < af_detection_dist) then
+							af_detected = 1
+							play_sound = false
+						end
+					end
+				end
+			end
+		end
+		
+		if play_sound then
+			snd = sound_object('detectors\\art_beep1')
+			snd:play(db.actor, 0, sound_object.s2d)
+		end
+	end
+end
+
+function get_artefact(visual)
+	if af_detected == 1 then 
+		artefact = 1
+	else
+		artefact = 0
+	end
+	
+	if (not visual) then
+		return artefact
+	end
+	
+	-- for indicator
+	if artefact and artefact >= 1 then
+		artefact = 0
+		af_detected = 0
+		return 1
+	end
+	
+	af_detected = 0
+	return 0
+end
+
+
+
+function on_game_start()
+	local af_tiers_ini = ini_file("items\\settings\\passive_detector_artefact_tiers.ltx")
+	af_by_tiers = utils_data.collect_section(af_tiers_ini, "artefact_teirs", true)
+	debug("af tiers:")
+	print_table(af_by_tiers)
+
+    RegisterScriptCallback("actor_on_update",actor_on_update)
+	RegisterScriptCallback("actor_on_first_update",actor_on_first_update)
+end
+
+
