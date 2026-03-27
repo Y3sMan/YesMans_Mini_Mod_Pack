@@ -9,7 +9,7 @@
  --#region DEBUG ----------------------------------------
 
 local modname = "QRS Auto Equip Backpack: Soulslike Patch"
-local DEBUG = true
+local DEBUG = false 
 
 local function print_table (tbl, indent)
     local g_type = type

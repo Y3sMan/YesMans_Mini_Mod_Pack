@@ -10,7 +10,7 @@
  
 
 local modname = "QRS Auto Equip Backpack"
-local DEBUG = true
+local DEBUG = false 
 
 local function print_table (tbl, indent)
     local g_type = type
