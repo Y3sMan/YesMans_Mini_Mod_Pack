@@ -1,0 +1,6 @@
+.* export-ignore
+.github export-ignore
+*.log export-ignore
+.git-ignore export-ignore
+version export-ignore
+readme.md export-ignore
