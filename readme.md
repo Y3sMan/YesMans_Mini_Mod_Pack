@@ -78,6 +78,8 @@ A very simple tweak of Grok's passive artefact detection mod in GAMMA. In the or
 
 Now, you can leave the detector in your inventory, and the passive detection status icon will still pop up!
 
+Currently, passive detection works regardless of whether the detector has a battery in it or not; it wasn't part of the original mod, and that is getting out of the scope of this tweak. Maybe one day...
+
 No performance impact. Does not scan the player's inventory at all; the mod simply checks if the actor has one of the 5 possible detectors, that's it. Checking its performance impact vs vanilla with the DevTools Profiler, I saw no differences.
 
 ## Compatibility
