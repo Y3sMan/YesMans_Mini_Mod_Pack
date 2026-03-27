@@ -1,0 +1,25 @@
+--[[
+    Mod Name: Weapon Hud Anywhere
+    Author:	YesMan
+    Created:	20-03-2026 (dd-mm-yyyy)
+    Last Edit:	20-03-2026 (dd-mm-yyyy)
+    Version:	v1.0
+]]
+
+
+local KEYBIND = key_bindings.kCUSTOM17
+
+local start_weapon = ui_debug_launcher.start_wpn_hud_editor()
+local GUI
+
+function on_key_release(key)
+    local bind = dik_to_bind(key)
+    if (bind == KEYBIND) then
+        start_weapon()
+    end
+end
+
+
+function on_game_start()
+    RegisterScriptCallback("on_key_release", on_key_release)
+end
