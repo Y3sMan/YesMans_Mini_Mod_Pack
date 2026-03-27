@@ -9,7 +9,7 @@
 
 local KEYBIND = key_bindings.kCUSTOM17
 
-local start_weapon = ui_debug_launcher.start_wpn_hud_editor()
+local start_weapon = ui_debug_launcher.start_wpn_hud_editor
 local GUI
 
 function on_key_release(key)

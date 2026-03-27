@@ -63,7 +63,6 @@ end
 
 
 local function log(log_type, output, ...)
-    if not DEBUG then return end
     if not output then
         utils_data.debug_write("[" .. modname .. "] "..log_type..": ".."(nil)")
         callstack()

@@ -62,7 +62,6 @@ end
 
 
 local function log(log_type, output, ...)
-	if not DEBUG then return end
 	if not output then
 		utils_data.debug_write("[" .. modname .. "] "..log_type..": ".."(nil)")
 		callstack()
@@ -194,7 +193,6 @@ function open_specific_mcm(path)
 end
 
 --#endregion------------------------------------------------------------------
-
 get_config = grok_artefacts_bip_mcm.get_config
 
 local detectors = {
