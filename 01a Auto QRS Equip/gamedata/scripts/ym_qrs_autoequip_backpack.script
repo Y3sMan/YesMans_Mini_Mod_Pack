@@ -10,7 +10,7 @@
  
 
 local modname = "QRS Auto Equip Backpack"
-local DEBUG = true
+local DEBUG = false 
 
 local function print_table (tbl, indent)
     local g_type = type
@@ -209,12 +209,6 @@ local dte = demonized_time_events
 -- state variables
 local backpack_slot = 13
 
--- kill yourself on K
-function on_key_press(key)
-    if key == DIK_keys.DIK_K then
-        db.actor:change_health(-2)
-    end
-end
 
 --------------------------------------------
 -- QRS Patch
