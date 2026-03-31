@@ -204,7 +204,6 @@ end
 local KEYBIND = key_bindings.kCUSTOM17
 
 local start_weapon = ui_debug_launcher.start_wpn_hud_editor
-local GUI
 local prepare = ui_debug_launcher.prepare
 local reload_wpn_hud = ui_debug_launcher.reload_wpn_hud
 local dte = demonized_time_events
@@ -259,5 +258,9 @@ end
 
 
 function on_game_start()
-    RegisterScriptCallback("on_key_release", on_key_release)
+    if not DEV_DEBUG or not DEV_DEBUG_DEV  then
+        RegisterScriptCallback("on_key_release", on_key_release)
+    else
+        info("Debug Mode Enabled. Disabling Weapon Hud Editor Anywhere")
+    end
 end
