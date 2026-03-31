@@ -7,11 +7,225 @@
 ]]
 
 
+--#region DEBUG ----------------------------------------
+
+local modname = "Weapon Hud Editor Anywhere"
+local DEBUG = true
+
+local function print_table (tbl, indent)
+    local g_type = type
+    if not indent then
+        indent = 0
+    end
+
+    utils_data.debug_write(string.rep(" ", indent) .. "{")
+
+    indent = indent + 2
+
+    if (g_type(tbl) == "userdata") then        
+        utils_data.debug_write("<userdata>,\n")
+    else
+        for k, v in pairs(tbl) do
+            local toprint = string.rep(" ", indent)
+
+            if (g_type(k) == "number") then
+                toprint = toprint .. "[" .. k .. "] = "
+            elseif (g_type(k) == "string") then
+                toprint = toprint  .. k ..  " = "
+            end
+
+            if (g_type(v) == "number") then
+                utils_data.debug_write(toprint .. v .. ",")
+            elseif (g_type(v) == "string") then
+                utils_data.debug_write(toprint .. "\"" .. v .. "\",")
+            elseif (g_type(v) == "table") then
+                utils_data.debug_write(toprint)
+                print_table(v, indent + 2)
+            else
+                utils_data.debug_write(toprint .. "\"" .. tostring(v) .. "\",")
+            end
+        end
+    end
+
+    utils_data.debug_write(string.rep(" ", indent-2) .. "}")
+end	
+
+
+--- Flattens a table of any nested status into a single string
+---@param o table
+---@return string 
+local function dump_table(o)
+   if type(o) == 'table' then
+      local s = '{ '
+      for k,v in pairs(o) do
+         if type(k) ~= 'number' then k = '"'..k..'"' end
+         s = s .. '['..k..'] = ' .. dump_table(v) .. ','
+      end
+      return s .. '} '
+   else
+      return tostring(o)
+   end
+end
+
+
+local function log(log_type, output, ...)
+    if not output then
+        utils_data.debug_write("[" .. modname .. "] "..log_type..": ".."(nil)")
+        callstack()
+    elseif (type(output) == "table") then
+        utils_data.debug_write("[" .. modname .. "] "..log_type..": ")
+        debug_print_table(output)
+    else
+        -- pulled from _g.script
+        -- more var subbing
+        if (select('#', ...) >= 1) then
+            local i = 0
+            local p = { ... }
+            local function sr(a)
+                i = i + 1
+                if (type(p[i]) == 'userdata') then
+                    if (p[i].x and p[i].y) then
+                        return vec_to_str(p[i])
+                    end
+                    return 'userdata'
+                end
+                return tostring(p[i])
+            end
+            output = string.gsub(output, "%%s", sr)
+        end
+        printf("[" .. modname .. "] " .. log_type .. ": " .. output, ...)
+    end
+end
+
+function debug(output,...)
+    if not DEBUG then return end
+    log("DEBUG", output, ...)
+end
+
+function info(output,...)
+    log("INFO ", output, ...)
+end
+
+function warn(output,...)
+    log("WARN ", output, ...)
+end
+
+function error(output,...)
+    log("ERROR", output, ...)
+end
+
+function debug_tip(text, delay,...)
+    debug(text, ...)
+
+    local text = "[" .. modname .. "] "..tostring(text)
+
+    if not db.actor then
+        return
+    end
+    
+    local ico = "ui_inGame2_Dengi_otdani"
+    local text_color = utils_xml.get_color("pda_white")
+
+    text = text_color .. text
+
+    if delay == nil then
+        delay = 6000
+    end
+
+    news_manager.send_tip(db.actor, text, nil, ico, delay)
+end
+
+local function debug_print_table(caption, tbl_options)
+    if not DEBUG then return end
+
+    if not tbl_options then 
+        info("debug_print_table: tbl_options is nil")
+        return 
+    end
+
+    local tbl = {}
+    if type(tbl_options[1]) ~="table" then
+        tbl = tbl_options
+    else
+        tbl = tbl_options[1]
+    end
+
+    local indent = tbl_options[2] or 0
+
+    debug(caption)
+    print_table(tbl, indent)
+end
+
+local function info_print_table(caption, tbl_options)
+    if not DEBUG then return end
+    if not tbl_options then 
+        info("info_print_table: tbl_options is nil")
+        return 
+    end
+
+    local tbl = {}
+
+    if type(tbl_options[1]) ~="table" then
+        tbl = tbl_options
+    else
+        tbl = tbl_options[1]
+    end
+
+    local indent = tbl_options[2] or 0
+
+    info(caption)
+    print_table(tbl, indent)
+end
+
+
+
+function open_specific_mcm(path)
+    if not DEBUG then return end
+
+    if ui_mcm then
+        exec_console_cmd("main_menu")
+
+        local function open_mcm_event(path)
+            ui_mcm.open_to(path)
+            return true
+        end
+
+
+        if demonized_time_events then
+            demonized_time_events.CreateTimeEvent("ym_open_mcm", "open_mcm",1, open_mcm_event, path)
+        else
+            CreateTimeEvent("ym_open_mcm", "open_mcm",1, open_mcm_event, path)
+        end
+    end
+end
+
+--#endregion------------------------------------------------------------------
+
 local KEYBIND = key_bindings.kCUSTOM17
 
 local start_weapon = ui_debug_launcher.start_wpn_hud_editor
 local GUI
 local prepare = ui_debug_launcher.prepare
+local reload_wpn_hud = ui_debug_launcher.reload_wpn_hud
+local dte = demonized_time_events
+
+
+function display_msg(msg)
+    actor_menu.set_msg(1, msg,5)
+end
+
+---Reload ini and weapon hud with a Time Event
+function reload_all()
+    -- reload the configs and hud
+    local function delay_reload()
+        reload_ini_sys()
+        reload_wpn_hud()
+
+        return true
+    end
+
+    dte.CreateTimeEvent("ym_wpn_hud_reload", "ym_wpn_hud_reload", 1, delay_reload)
+end
 
 function on_key_release(key)
     local bind = dik_to_bind(key)
@@ -20,6 +234,28 @@ function on_key_release(key)
         start_weapon()
     end
 end
+
+local _on_keyboard = ui_debug_wpn_hud.WpnHudEditor.OnKeyboard
+function ui_debug_wpn_hud.WpnHudEditor:OnKeyboard(dik,keyboard_action)
+    -- reset event
+    if dik == DIK_keys.DIK_NUMPAD0 then
+        reload_all()
+    else
+        _on_keyboard(self, dik, keyboard_action)
+    end
+end
+
+
+-- will not 
+local _on_btn_save = ui_debug_wpn_hud.WpnHudEditor.OnButtonSave
+function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
+
+    -- run the original save logic
+    _on_btn_save(self)
+
+    reload_all()
+end
+
 
 
 function on_game_start()
