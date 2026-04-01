@@ -201,35 +201,234 @@ end
 
 --#endregion------------------------------------------------------------------
 
-local KEYBIND = key_bindings.kCUSTOM17
 
+-- Imports
 local start_weapon = ui_debug_launcher.start_wpn_hud_editor
 local prepare = ui_debug_launcher.prepare
+local clean_memo = ui_debug_wpn_hud.WpnHudEditor.CleanMemo
 local reload_wpn_hud = ui_debug_launcher.reload_wpn_hud
 local dte = demonized_time_events
+local mcm = ui_mcm
+local string_find = string.find
+
+
+-- definitions
+NEW_LTX = "mod_system_ym_wpn_hud_edits.ltx"
+KEYBIND = key_bindings.kCUSTOM17
+
+local t_dir = "items\\weapons\\"
+local dbg_cache  = "Z:\\mnt\\Games\\Modding\\GAMMA\\Anomaly 1.5.3\\gamedata\\configs\\cache_dbg.ltx"
+local tmp_dir = "Z:\\mnt\\Games\\Modding\\GAMMA\\Anomaly 1.5.3\\gamedata\\configs\\mod_system_zzzzzz_ym_wpn_hud_edits.ltx"
+local org_wpn_hud_values = {}
 
 
 function display_msg(msg)
     actor_menu.set_msg(1, msg,5)
 end
 
----Reload ini and weapon hud with a Time Event
-function reload_all()
-    -- reload the configs and hud
-    local function delay_reload()
-        reload_ini_sys()
-        reload_wpn_hud()
+function display_news_tip(msg)
+    if not db.actor then
+        return
+    end
+    
+    local ico = "ui_inGame2_Dengi_otdani"
+    local text_color = utils_xml.get_color("pda_white")
 
+    local text = text_color .. msg
+
+    local delay = 6000
+
+    news_manager.send_tip(db.actor, text, nil, ico, delay)
+
+end
+
+---Reset dltx changes for section wpn
+---@param wpn string string: string section of wpn 
+---@return boolean success:  whether wpn section dltx was reset successfully
+function reset_wpn_dltx(wpn)
+    return false
+end
+
+
+function get_parent_wpn(wep_sec)
+	local parent_section = ini_sys:r_string_ex(wep_sec, "parent_section")
+	return parent_section or wep_sec
+end
+
+function wpn_has_parent(wep_sec)
+	return (get_parent_wpn(wep_sec) ~= wep_sec) 
+end
+
+---Reload in-memory configs and weapon hud
+function reload_configs()
+    reload_ini_sys()
+    reload_wpn_hud()
+end
+
+---Reset cache_dbg.ltx
+function reset_cache_dbg()
+    local ltx = io.open(dbg_cache, 'w')
+    if ltx then
+        ltx:write("")
+        ltx:close()
+    end
+end
+
+function reset_dltx_all()
+    local ltx = io.open(tmp_dir, 'w')
+    if ltx then
+        ltx:write("")
+        ltx:close()
+    end
+end
+
+---Reset both cache_dbg.ltx and the dltx mod_system_ym_wpn_hud_edits.ltx
+function reset_configs()
+    reset_cache_dbg()
+    reset_dltx_all()
+
+    reload_configs()
+    display_msg("Resetting the DLTX and cache_dbg.ltx")
+end
+
+
+---Take input str_in and remove excess newlines. "Excess" means more than 2 empty newlines
+---@param str_in string string: input string 
+function clean_excess_newlines(str_in)
+    local str_out = string.gsub(str_in, "\n", "")
+    debug_print_table("clean_excess_newlines", {
+        ["str_in"] = str_in or false,
+        ["str_out"] = str_out or false
+    })
+    return str_out or str_in
+end
+
+function fixup_dltx(str_in)
+    local str_out = "str_out empty"
+
+    -- cleanup excess newlines
+    str_out = clean_excess_newlines(str_in)
+
+    -- fix smashed together sections
+    --[[
+        ![wpn_1]![wpn2]
+    --]]
+    str_out = string.gsub(str_in, "%]%!%[", "]\n![")
+    debug_print_table("fixup_dltx", {
+        ["str_in"] = str_in or false,
+        ["str_out"] = str_out or false
+    })
+
+    str_out = clean_excess_newlines(str_out)
+
+    return str_out or str_in
+end
+
+
+---Reset dltx changes for current wpn
+---@return boolean success:  whether current wpn section dltx was reset successfully
+function reset_dltx_changes(wpn)
+
+	local wpn = db.actor:active_item()
+    local wpn_sec = wpn:section()
+    local parent_sec = nil
+    if wpn_has_parent(wpn_sec) then
+        parent_sec = get_parent_wpn(wpn_sec)
+    end
+
+    debug("wpn = %s and parent = %s", wpn_sec, parent_sec)
+    
+
+    -- Read data from our dltx
+    local ltx = io.open(tmp_dir, 'rb')
+    if ltx then
+        local test_data = ltx:read("*all")
+        ltx:close()
+        debug("test data = %s", test_data)
+
+        -- remove all settings between sections
+        --[[
+            [wpn_1]
+            >>>>    stuff = 1,2, 3  <<<<<
+            [wpn_2]
+                stuff2 = 2,3,4
+        --]]
+        local hud_wpn = wpn_sec .. "_hud"
+        hud_wpn = "!%[" .. hud_wpn .. "%]"
+
+        local inbw_str_to_find = hud_wpn .. ".-%!%["
+        local eof_str_to_find = hud_wpn .. ".*"
+
+        local inbw_str_to_replace = "!["
+        local eof_str_to_replace = ""
+
+        local new_test_data = test_data
+
+        -- check if current wpn is even in dltx
+        local i,j = string_find(new_test_data, hud_wpn)
+        debug("i, j = %s, %s", i, j)
+
+        if not i  then return false end
+
+        -- test if wpn is inbetween other sections or at the end of the file
+        i, j = string_find(new_test_data, inbw_str_to_find)
+
+
+        -- at eof
+        if not i then
+            i, j = string_find(new_test_data, eof_str_to_find)
+            new_test_data = string.gsub(new_test_data, eof_str_to_find, eof_str_to_replace)
+            debug("wpn %s is at eof", wpn_sec)
+        -- in between
+        else
+            debug("wpn %s is inbetween other sections", wpn_sec)
+            new_test_data = string.gsub(new_test_data, inbw_str_to_find, inbw_str_to_replace)
+        end
+
+        new_test_data = fixup_dltx(new_test_data)
+        debug("new test data = %s", new_test_data)
+
+        ltx = io.open(tmp_dir, "w")
+
+        if ltx then
+            ltx:write(new_test_data)
+            ltx:close()
+
+            -- clean_memo()
+            local wpnhud = ui_debug_wpn_hud.GUI
+            if wpnhud then wpnhud:CleanMemo() debug("cleaning ui_debug_wpn_hud memory") wpnhud:Reset(true) end
+
+            reload_configs()
+        end
+        
         return true
     end
 
-    dte.CreateTimeEvent("ym_wpn_hud_reload", "ym_wpn_hud_reload", 1, delay_reload)
+    return false
 end
+
+-- function reset_dltx_better()
+--     local ltx = utils_data.cfg_file(tmp_dir, true)
+--     if ltx then
+--         local wpn = db.actor:active_item()
+--         local wpn_sec = wpn:section()
+
+--         local ks = wpn_sec and ltx:GetKeys(wpn_sec)
+--         debug_print_table("cfg_file stuff", {
+--             ["ks"] = ks or false,
+--             ["fname"] = ltx.fname or false,
+--             ["dir"] = ltx.directory or false
+--         })
+--     end
+ 
+-- end
 
 function on_key_release(key)
     local bind = dik_to_bind(key)
     if (bind == KEYBIND) then
+
         prepare()
+        -- ui_debug_launcher.ini_cc = ini_file_ex(NEW_LTX, true)
         start_weapon()
     end
 end
@@ -238,21 +437,88 @@ local _on_keyboard = ui_debug_wpn_hud.WpnHudEditor.OnKeyboard
 function ui_debug_wpn_hud.WpnHudEditor:OnKeyboard(dik,keyboard_action)
     -- reset event
     if dik == DIK_keys.DIK_NUMPAD0 then
-        reload_all()
+        -- only reset if holding ALT
+        if  mcm and mcm.MOD_ALT then
+            if mcm and mcm.MOD_SHIFT then
+                reset_configs()
+            else
+                reset_dltx_changes()
+            end
+        else
+            display_msg("Are you sure? Check the console for further instructions.")
+            -- display_news_tip("Hold ALT and try again to delete dltx changes")
+            -- display_news_tip("Hold SHIFT+ALT and try again to delete BOTH dltx changes and cache_dbg.ltx")
+            info("Hold ALT and try again to delete dltx changes")
+            info("Hold SHIFT+ALT and try again to delete BOTH dltx changes and cache_dbg.ltx")
+            return
+        end
+
+
     else
+    
         _on_keyboard(self, dik, keyboard_action)
     end
 end
 
 
--- will not 
+
+
+-- change file to save changes to
 local _on_btn_save = ui_debug_wpn_hud.WpnHudEditor.OnButtonSave
 function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
+    -- ui_debug_launcher.ini_cc = ini_file_ex(NEW_LTX, true)
 
-    -- run the original save logic
     _on_btn_save(self)
 
-    reload_all()
+    -- local sp = getFS():update_path('$game_configs', t_dir)
+	-- sp = string.sub(sp,0,string.len(sp)-1)
+	-- lua_ext.recurse_subdirectories_and_execute(sp,{"ltx"},fix_saved_sections)
+
+
+    -- only do dltx save if holding ALT
+    if not mcm or not mcm.MOD_ALT then
+        display_msg("There is no going back! If you want to save to DLTX, hold ALT and save again!")
+        return
+    end
+
+
+    local function delay_reload()
+        reload_configs()
+
+        return true
+    end
+
+    local function delay_edit()
+        local fullpath = dbg_cache 
+        local ltx = io.open(fullpath, "rb")
+        if ltx then
+            local data = ltx:read("*all")
+            local new_data
+            ltx:close()
+            if data then
+                -- debug_print_table("data", data)
+                debug("data = %s", data)
+                new_data = string.gsub(data, "%[", "![")
+                new_data = clean_excess_newlines(new_data)
+                -- new_data = string.gsub(new_data, "[", "![") or new_data
+                debug("new data = %s", new_data)
+                
+                -- write changes to dltx
+                ltx = io.open(tmp_dir, "w")
+                if ltx then
+                    ltx:write(new_data)
+                    ltx:close()
+                end
+            end
+        end
+
+        -- create refresh event
+        dte.CreateTimeEvent("ym_wpn_hud_reload", "ym_wpn_hud_reload", 1, delay_reload)
+
+        return true
+    end
+
+    dte.CreateTimeEvent("wpn_save", "wpn_save", 0, delay_edit)
 end
 
 
