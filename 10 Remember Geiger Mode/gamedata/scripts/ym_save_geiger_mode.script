@@ -1,0 +1,22 @@
+function load_state(m_data)
+    local t = m_data.SaveGeiger
+    if t then
+        item_device.dosimeter_env_rads_mode = t.GeigerMode or false
+		printdbg("# LOADING: Geiger Mode | dosimeter_env_rads_mode: %s", tostring(item_device.dosimeter_env_rads_mode))
+    end
+
+end
+
+function save_state(m_data)
+    if USE_MARSHAL then
+        local t = {}
+        t.GeigerMode = item_device.dosimeter_env_rads_mode
+        m_data.SaveGeiger = t
+		printdbg("# SAVING: Geiger Mode | dosimeter_env_rads_mode: %s", tostring(item_device.dosimeter_env_rads_mode))
+    end
+end
+
+function on_game_start()
+    RegisterScriptCallback("save_state", save_state)
+    RegisterScriptCallback("load_state", load_state)
+end
