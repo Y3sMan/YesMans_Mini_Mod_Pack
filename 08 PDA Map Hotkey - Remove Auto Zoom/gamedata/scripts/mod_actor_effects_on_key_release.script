@@ -1,0 +1,25 @@
+--[[
+Monkey Patch of GAMMA's "3D PDA and Headlamp Animations"'s actor_effects.script, on_key_release
+--]]
+
+local org_on_key_release = actor_effects.on_key_release
+
+function actor_effects.on_key_release(key)
+	local bind = dik_to_bind(key)
+
+	if (bind == key_bindings.kCUSTOM20) then
+		local pda_menu = ActorMenu.get_pda_menu()
+		local pda3d = get_console_cmd(1,"g_3d_pda")
+		if not (pda_menu:IsShown()) and db.actor:item_in_slot(8) then
+			if (pda3d) then
+				db.actor:activate_slot(8)
+			else
+				pda_menu:ShowDialog(true)
+            end
+			pda_menu:SetActiveSubdialog("eptTasks")
+        end
+    else
+        org_on_key_release(key)
+    end
+
+end
