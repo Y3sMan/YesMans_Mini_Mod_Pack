@@ -1,0 +1,59 @@
+--[[
+    Mod Name: Remember Last Radio Station
+    Author:	YesMan
+    Created:	03-04-2026 (dd-mm-yyyy)
+    Last Edit:	03-04-2026 (dd-mm-yyyy)
+    Version:	v1.0
+    Description:
+        Simply remember the last selected radio/player channel.
+        There are other mods to restore the player (`Persistent PDA Radio` is what I use). This
+    is simply a patch to work alongside, but not depend on, that mod.
+        So, you are playing music, you pause the player to enjoy the surroundings and Bloodsucker screams,
+    then you move on to another level; you go to resume your music, and realize you have to go into the 
+    player and select your channel all over again!
+]]
+
+--Patch for `Persistent PDA Radio`
+local ppr_patch = persistent_pda_radio and true or false
+
+function save_state(m_data)
+    local t = {}
+    t.last_radio_channel = ui_pda_radio_tab.radio_selected or 0
+    t.last_radio_vol = ui_pda_radio_tab.radio_vol or 0.5
+    t.last_player_vol = ui_pda_radio_tab.plyr_vol or 0.5
+
+    m_data.ym_remember_radio = t
+
+    --    Patch for `Persistent PDA Radio` to ensure that both `save_state` and `load_state` work properly 
+    -- (i.e. one mod overwrites the others mdata)
+    if ppr_patch then
+        m_data.ppdar_radio_selected = t.last_radio_channel or 0
+        m_data.ppdar_radio_vol = t.last_radio_vol or 0.5
+        m_data.ppdar_plyr_vol = t.last_player_vol or 0.5
+    end
+end
+
+function load_state(m_data)
+    if not m_data then return end
+
+    local t = m_data.ym_remember_radio or {}
+
+	ui_pda_radio_tab.radio_selected = t.last_radio_channel or 0
+    ui_pda_radio_tab.radio_vol = t.last_radio_vol or 0.5
+    ui_pda_radio_tab.plyr_vol = t.last_player_vol or 0.5
+
+    if ppr_patch then
+        persistent_pda_radio.ppdar_radio_selected = t.last_radio_channel or 0
+        persistent_pda_radio.ppdar_radio_vol = t.last_radio_vol or 0.5
+        persistent_pda_radio.ppdar_plyr_vol = t.last_player_vol or 0.5
+    end
+end
+
+
+function on_game_start()
+    -- Patch for `Persistent PDA Radio`
+    if persistent_pda_radio then ppr_patch = true else ppr_patch = false end
+
+    RegisterScriptCallback("save_state", save_state)
+    RegisterScriptCallback("load_state", load_state)
+end
