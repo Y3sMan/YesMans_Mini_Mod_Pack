@@ -32,11 +32,6 @@ function wait(obj)
 			level.change_game_time(0, 0, minutes)
 			level.add_pp_effector("fade_nine_sec.ppe", 8551213, false)
 
-
-			-- advance sleep stat
-			if zz_YM_banjaji_sleep_gamma and zz_YM_banjaji_sleep_gamma.advance_sleep_by_hour then
-				zz_YM_banjaji_sleep_gamma.advance_sleep_by_hour(hrs)
-			end
 		end
 	end
 end
