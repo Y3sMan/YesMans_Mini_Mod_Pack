@@ -74,7 +74,8 @@ local function log(log_type, output, ...)
         callstack()
     elseif (type(output) == "table") then
         utils_data.debug_write("[" .. modname .. "] "..log_type..": ")
-        debug_print_table(output)
+        -- debug_print_table(output)
+        print_table(output)
     else
         -- pulled from _g.script
         -- more var subbing
@@ -88,6 +89,8 @@ local function log(log_type, output, ...)
                         return vec_to_str(p[i])
                     end
                     return 'userdata'
+                -- elseif (type(p[i]) == "table") then
+                    -- return dump_table(p[i])
                 end
                 return tostring(p[i])
             end
@@ -217,8 +220,13 @@ NEW_LTX = "mod_system_ym_wpn_hud_edits.ltx"
 KEYBIND = key_bindings.kCUSTOM17
 
 local t_dir = "items\\weapons\\"
-local dbg_cache  = "Z:\\mnt\\Games\\Modding\\GAMMA\\Anomaly 1.5.3\\gamedata\\configs\\cache_dbg.ltx"
-local tmp_dir = "Z:\\mnt\\Games\\Modding\\GAMMA\\Anomaly 1.5.3\\gamedata\\configs\\mod_system_zzzzzz_ym_wpn_hud_edits.ltx"
+-- local dbg_cache  = "Z:\\mnt\\Games\\Modding\\GAMMA\\Anomaly 1.5.3\\gamedata\\configs\\cache_dbg.ltx"
+-- local tmp_dir = "Z:\\mnt\\Games\\Games\\Stalker Mods\\Anomaly GAMMA\\MO2 2.5\\mods\\Wpn Hud Anywhere - Master\\gamedata\\configs\\mod_system_zzzzzz_ym_wpn_hud_edits.ltx"
+
+local dltx_name = "mod_system_zzzzzz_ym_wpn_hud_edits.ltx"
+local dbg_cache_name = "cache_dbg.ltx"
+-- local tmp_dir = "Z:\\mnt\\Games\\Modding\\GAMMA\\Anomaly 1.5.3\\gamedata\\configs\\mod_system_zzzzzz_ym_wpn_hud_edits.ltx"
+
 local org_wpn_hud_values = {}
 
 
@@ -265,9 +273,45 @@ function reload_configs()
     reload_wpn_hud()
 end
 
+---Return string filepath to `./gamedata/config/`
+---@return string?
+function get_game_config_path()
+    return getFS():update_path('$game_config$', '') or nil
+end
+
+---Get file object of ltx in gamedata/configs
+---@param filepath string path: A file inside `gamedata/configs`
+---@param io_args string: arguments to pass to `io.open`: 'w|a|r|(b)'
+---@return file*?
+function get_config_file(filepath, io_args)
+    local cfg_path = get_game_config_path()
+	local path = cfg_path and cfg_path  .. filepath
+    local ltx = path and io.open(path, io_args) or nil
+    return ltx or nil
+end
+
+---Return `cache_dbg` file
+---@param io_args string: arguments to passthrough to `io.open`
+---@return file*?
+function get_dbg_cache_file(io_args)
+    io_args = io_args or "w"
+    local ltx = get_config_file(dbg_cache_name, io_args)
+    return ltx or nil
+end
+
+---Return `mod_system_ym_wpn_hud_edits` file
+---@param io_args string: arguments to passthrough to `io.open`
+---@return file*?
+function get_dltx_file(io_args)
+    io_args = io_args or "w"
+    local ltx = get_config_file(dltx_name, io_args)
+    return ltx or nil
+end
+
+
 ---Reset cache_dbg.ltx
 function reset_cache_dbg()
-    local ltx = io.open(dbg_cache, 'w')
+    local ltx = get_dbg_cache_file('w')
     if ltx then
         ltx:write("")
         ltx:close()
@@ -275,7 +319,7 @@ function reset_cache_dbg()
 end
 
 function reset_dltx_all()
-    local ltx = io.open(tmp_dir, 'w')
+    local ltx = get_dltx_file('w')
     if ltx then
         ltx:write("")
         ltx:close()
@@ -340,7 +384,8 @@ function reset_dltx_changes(wpn)
     
 
     -- Read data from our dltx
-    local ltx = io.open(tmp_dir, 'rb')
+    local ltx = get_dltx_file('rb') or nil
+
     if ltx then
         local test_data = ltx:read("*all")
         ltx:close()
@@ -388,7 +433,7 @@ function reset_dltx_changes(wpn)
         new_test_data = fixup_dltx(new_test_data)
         debug("new test data = %s", new_test_data)
 
-        ltx = io.open(tmp_dir, "w")
+        local ltx = get_dltx_file('w')
 
         if ltx then
             ltx:write(new_test_data)
@@ -489,8 +534,11 @@ function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
     end
 
     local function delay_edit()
-        local fullpath = dbg_cache 
-        local ltx = io.open(fullpath, "rb")
+        debug("editing dltx")
+        -- local fullpath = dbg_cache 
+        -- local ltx = io.open(fullpath, "rb")
+        local ltx = get_dbg_cache_file('rb')
+
         if ltx then
             local data = ltx:read("*all")
             local new_data
@@ -504,13 +552,17 @@ function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
                 debug("new data = %s", new_data)
                 
                 -- write changes to dltx
-                ltx = io.open(tmp_dir, "w")
+                -- ltx = io.open(tmp_dir, "w")
+                local ltx = get_dltx_file('w')
+                
                 if ltx then
                     ltx:write(new_data)
                     ltx:close()
                 end
             end
         end
+
+        -- end
 
         -- create refresh event
         dte.CreateTimeEvent("ym_wpn_hud_reload", "ym_wpn_hud_reload", 1, delay_reload)
