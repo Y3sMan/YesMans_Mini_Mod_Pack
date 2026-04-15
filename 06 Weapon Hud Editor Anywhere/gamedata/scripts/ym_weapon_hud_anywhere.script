@@ -223,8 +223,8 @@ local t_dir = "items\\weapons\\"
 -- local dbg_cache  = "Z:\\mnt\\Games\\Modding\\GAMMA\\Anomaly 1.5.3\\gamedata\\configs\\cache_dbg.ltx"
 -- local tmp_dir = "Z:\\mnt\\Games\\Games\\Stalker Mods\\Anomaly GAMMA\\MO2 2.5\\mods\\Wpn Hud Anywhere - Master\\gamedata\\configs\\mod_system_zzzzzz_ym_wpn_hud_edits.ltx"
 
-local dltx_name = "mod_system_zzzzzz_ym_wpn_hud_edits.ltx"
-local dbg_cache_name = "cache_dbg.ltx"
+dltx_name = "mod_system_zzzzzz_ym_wpn_hud_edits.ltx"
+cache_name = "ym_wpn_hud_cache.ltx"
 -- local tmp_dir = "Z:\\mnt\\Games\\Modding\\GAMMA\\Anomaly 1.5.3\\gamedata\\configs\\mod_system_zzzzzz_ym_wpn_hud_edits.ltx"
 
 local org_wpn_hud_values = {}
@@ -290,12 +290,12 @@ function get_config_file(filepath, io_args)
     return ltx or nil
 end
 
----Return `cache_dbg` file
+---Return `ym_wpn_hud_cache` file
 ---@param io_args string: arguments to passthrough to `io.open`
 ---@return file*?
-function get_dbg_cache_file(io_args)
+function get_cache_file(io_args)
     io_args = io_args or "w"
-    local ltx = get_config_file(dbg_cache_name, io_args)
+    local ltx = get_config_file(cache_name, io_args)
     return ltx or nil
 end
 
@@ -309,9 +309,9 @@ function get_dltx_file(io_args)
 end
 
 
----Reset cache_dbg.ltx
-function reset_cache_dbg()
-    local ltx = get_dbg_cache_file('w')
+---Reset ym_wpn_hud_cache.ltx
+function reset_cache()
+    local ltx = get_cache_file('w')
     if ltx then
         ltx:write("")
         ltx:close()
@@ -326,13 +326,15 @@ function reset_dltx_all()
     end
 end
 
----Reset both cache_dbg.ltx and the dltx mod_system_ym_wpn_hud_edits.ltx
+---Reset both ym_wpn_hud_cache.ltx and the dltx mod_system_ym_wpn_hud_edits.ltx
+---
+---**Be very careful with these**
 function reset_configs()
-    reset_cache_dbg()
+    reset_cache()
     reset_dltx_all()
 
     reload_configs()
-    display_msg("Resetting the DLTX and cache_dbg.ltx")
+    display_msg("Resetting the DLTX and ym_wpn_hud_cache.ltx")
 end
 
 
@@ -473,7 +475,9 @@ function on_key_release(key)
     if (bind == KEYBIND) then
 
         prepare()
-        -- ui_debug_launcher.ini_cc = ini_file_ex(NEW_LTX, true)
+        -- make this wpn hud save to our own cache file
+        ui_debug_launcher.ini_cc = ini_file_ex(cache_name, true)
+        -- launch hud editor
         start_weapon()
     end
 end
@@ -494,7 +498,7 @@ function ui_debug_wpn_hud.WpnHudEditor:OnKeyboard(dik,keyboard_action)
             -- display_news_tip("Hold ALT and try again to delete dltx changes")
             -- display_news_tip("Hold SHIFT+ALT and try again to delete BOTH dltx changes and cache_dbg.ltx")
             info("Hold ALT and try again to delete dltx changes")
-            info("Hold SHIFT+ALT and try again to delete BOTH dltx changes and cache_dbg.ltx")
+            info("Hold SHIFT+ALT and try again to delete BOTH dltx changes and ym_wpn_hud_cache.ltx")
             return
         end
 
@@ -511,8 +515,6 @@ end
 -- change file to save changes to
 local _on_btn_save = ui_debug_wpn_hud.WpnHudEditor.OnButtonSave
 function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
-    -- ui_debug_launcher.ini_cc = ini_file_ex(NEW_LTX, true)
-
     _on_btn_save(self)
 
     -- local sp = getFS():update_path('$game_configs', t_dir)
@@ -537,7 +539,7 @@ function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
         debug("editing dltx")
         -- local fullpath = dbg_cache 
         -- local ltx = io.open(fullpath, "rb")
-        local ltx = get_dbg_cache_file('rb')
+        local ltx = get_cache_file('rb')
 
         if ltx then
             local data = ltx:read("*all")
