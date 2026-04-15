@@ -758,7 +758,9 @@
 	</dbg_lighting_editor>
 	
 <!-- Weapon HUD editor -->
-	<dbg_wpn_hud_editor x="0" y="-2" width="320" height="770" stretch="1">	
+										<!-- increase size of dbg_wpn_hud_editor element to allow for new buttons  -->
+	<dbg_wpn_hud_editor x="0" y="-2" width="550" height="800" stretch="1">	
+	<!-- <dbg_wpn_hud_editor x="0" y="-2" width="320" height="770" stretch="1">	 -->
 		<frame x="0" y="0" width="320" height="772" stretch="1">
 			<texture r="0" g="0" b="0" a="150">ui_icons_PDA_tooltips</texture>
 		</frame>
