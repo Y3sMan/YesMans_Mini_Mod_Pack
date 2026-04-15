@@ -6,7 +6,6 @@
     Version:	v1.0
 ]]
 
-
 --#region DEBUG ----------------------------------------
 
 local modname = "Weapon Hud Editor Anywhere"
@@ -216,7 +215,7 @@ local string_find = string.find
 
 
 -- definitions
-NEW_LTX = "mod_system_ym_wpn_hud_edits.ltx"
+-- NEW_LTX = "mod_system_ym_wpn_hud_edits.ltx"
 KEYBIND = key_bindings.kCUSTOM17
 
 local t_dir = "items\\weapons\\"
@@ -229,6 +228,11 @@ cache_name = "ym_wpn_hud_cache.ltx"
 
 local org_wpn_hud_values = {}
 
+
+
+--------------------------------------------
+-- Display Utilities
+--------------------------------------------
 
 function display_msg(msg)
     actor_menu.set_msg(1, msg,5)
@@ -250,6 +254,8 @@ function display_news_tip(msg)
 
 end
 
+--------------------------------------------
+
 ---Reset dltx changes for section wpn
 ---@param wpn string string: string section of wpn 
 ---@return boolean success:  whether wpn section dltx was reset successfully
@@ -266,6 +272,13 @@ end
 function wpn_has_parent(wep_sec)
 	return (get_parent_wpn(wep_sec) ~= wep_sec) 
 end
+
+--------------------------------------------
+--#region Config Utilities
+--------------------------------------------
+
+
+
 
 ---Reload in-memory configs and weapon hud
 function reload_configs()
@@ -318,6 +331,9 @@ function reset_cache()
     end
 end
 
+---Empties entire DLTX file
+---
+---**Be very careful with these**
 function reset_dltx_all()
     local ltx = get_dltx_file('w')
     if ltx then
@@ -349,6 +365,9 @@ function clean_excess_newlines(str_in)
     return str_out or str_in
 end
 
+--- ensure str_in is ready to write to dltx
+---@param str_in string dltx file string
+---@return string formatted dltx file string
 function fixup_dltx(str_in)
     local str_out = "str_out empty"
 
@@ -470,10 +489,20 @@ end
  
 -- end
 
+--#endregion--------------------------------
+
+
+
+--------------------------------------------
+--#region  Events
+--------------------------------------------
+
+
+-- Open Wpn Hud Editor
 function on_key_release(key)
     local bind = dik_to_bind(key)
     if (bind == KEYBIND) then
-
+        -- necessary prepare function from ui_debug_launcher
         prepare()
         -- make this wpn hud save to our own cache file
         ui_debug_launcher.ini_cc = ini_file_ex(cache_name, true)
@@ -482,6 +511,7 @@ function on_key_release(key)
     end
 end
 
+-- override WpnHudEditor's OnKeyboard events
 local _on_keyboard = ui_debug_wpn_hud.WpnHudEditor.OnKeyboard
 function ui_debug_wpn_hud.WpnHudEditor:OnKeyboard(dik,keyboard_action)
     -- reset event
@@ -578,9 +608,11 @@ end
 
 
 function on_game_start()
-    if not DEV_DEBUG or not DEV_DEBUG_DEV  then
+    if not DEV_DEBUG or not DEV_DEBUG_DEV then
         RegisterScriptCallback("on_key_release", on_key_release)
     else
         info("Debug Mode Enabled. Disabling Weapon Hud Editor Anywhere")
     end
 end
+
+--#endregion--------------------------------
