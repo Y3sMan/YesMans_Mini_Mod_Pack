@@ -547,10 +547,7 @@ local _on_btn_save = ui_debug_wpn_hud.WpnHudEditor.OnButtonSave
 function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
     _on_btn_save(self)
 
-    -- local sp = getFS():update_path('$game_configs', t_dir)
-	-- sp = string.sub(sp,0,string.len(sp)-1)
-	-- lua_ext.recurse_subdirectories_and_execute(sp,{"ltx"},fix_saved_sections)
-
+    debug("alt aim check status = %s", self.btn_ym_alt_aim:GetCheck())
 
     -- only do dltx save if holding ALT
     if not mcm or not mcm.MOD_ALT then
@@ -605,7 +602,113 @@ function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
     dte.CreateTimeEvent("wpn_save", "wpn_save", 0, delay_edit)
 end
 
+--------------------------------------------
+--#region New Buttons
+--------------------------------------------
 
+-- function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXSave()
+--     debug("Saving current Weapon DLTX Changes")
+-- end
+
+-- function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXReset()
+--     debug("Resetting current Weapon DLTX Changes")
+-- end
+
+
+-- function ui_debug_wpn_hud.WpnHudEditor:On()
+--     debug("Resetting current Weapon DLTX Changes")
+-- end
+
+----------------
+--#endregion--------------------------------
+
+function add_buttons()
+    ----------------
+    -- New Reset button
+    -- resets dltx settings for current weapon
+    ----------------
+
+    -- override InitControls
+    local _init_controls = ui_debug_wpn_hud.WpnHudEditor.InitControls
+    function ui_debug_wpn_hud.WpnHudEditor:InitControls()
+        _init_controls(self)
+
+
+        -- alt aim button
+        ------------------------------------------------
+
+        local xml = self.xml
+        xml:InitStatic("dbg_wpn_hud_editor:cap_ym_alt_aim", self.dialog)
+
+        self.btn_ym_alt_aim = xml:InitCheck("dbg_wpn_hud_editor:check_ym_alt_aim", self.dialog)
+        self:Register(self.btn_ym_alt_aim, "btn_ym_alt_aim")
+
+        -- set check status based off weapons `use_alt_aim_hud` property
+        local wpn_sec = self.section or
+        false                             -- ui_debug_wpn_hud.GUI and ui_debug_wpn_hud.GUI.section and ui_debug_wpn_hud.GUI.section
+        local is_alt_aim = SYS_GetParam(0, wpn_sec, "use_alt_aim_hud") or false
+
+        debug_print_table("init alt aim check status", {
+            ["section"] = wpn_sec or false,
+            ["use_alt_aim_hud"] = is_alt_aim or false
+        })
+
+        self.btn_ym_alt_aim:SetCheck(is_alt_aim)
+
+        -- save button
+        ------------------------------------------------
+
+        self.btn_ym_save = xml:Init3tButton("dbg_wpn_hud_editor:btn_ym_save", self.dialog)
+        self:Register(self.btn_ym_save, "btn_ym_save")
+
+        -- reset button
+        ------------------------------------------------
+
+        self.btn_ym_reset = xml:Init3tButton("dbg_wpn_hud_editor:btn_ym_reset", self.dialog)
+        self:Register(self.btn_ym_reset, "btn_ym_reset")
+    end
+
+    -- override InitCallBacks
+    local _init_callbacks = ui_debug_wpn_hud.WpnHudEditor.InitCallBacks
+
+    -- function ui_debug_wpn_hud.WpnHudEditor:InitNewCallbacks()
+    function ui_debug_wpn_hud.WpnHudEditor:InitCallBacks()
+        debug("adding new callbacks")
+        -- new buttons
+        self:AddCallback("btn_ym_save", ui_events.BUTTON_CLICKED, self.OnButtonDLTXSave, self)
+        self:AddCallback("btn_ym_reset", ui_events.BUTTON_CLICKED, self.OnButtonDLTXReset, self)
+        -- self:AddCallback("btn_copy", ui_events.BUTTON_CLICKED, self.OnButtonCopy, self)
+
+        _init_callbacks(self)
+    end
+
+
+
+    function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXSave()
+        debug("Saving current Weapon DLTX Changes")
+    end
+
+    function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXReset()
+        debug("Resetting current Weapon DLTX Changes")
+    end
+
+    -- local _init = ui_debug_wpn_hud.WpnHudEditor.__init
+    -- function ui_debug_wpn_hud.WpnHudEditor:__init(owner, section) super()
+    --     _init(self, owner, section)
+
+    --     debug("initing new callbacks")
+    --     self:InitNewCallbacks()
+    -- end
+
+end
+
+function patches()
+    add_buttons()
+end
+
+function on_first_update()
+    patches()
+end
 
 function on_game_start()
     if not DEV_DEBUG or not DEV_DEBUG_DEV then
@@ -613,6 +716,7 @@ function on_game_start()
     else
         info("Debug Mode Enabled. Disabling Weapon Hud Editor Anywhere")
     end
+    RegisterScriptCallback("actor_on_first_update", on_first_update)
 end
 
 --#endregion--------------------------------
