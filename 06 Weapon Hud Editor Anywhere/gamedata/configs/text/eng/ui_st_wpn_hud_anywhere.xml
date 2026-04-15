@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="windows-1251" ?>
+<string_table>
+    <string id="st_ui_dbg_item_btn_ym_save">
+        <text>
+            Save to DLTX
+        </text>
+    </string>
+
+    <string id="st_ui_dbg_item_btn_ym_reset">
+        <text>
+            Reset DLTX
+        </text>
+    </string>
+    <string id="st_ui_dbg_item_check_ym_alt_aim">
+        <text>
+            Toggle Alt Aim
+        </text>
+    </string>
+</string_table>
