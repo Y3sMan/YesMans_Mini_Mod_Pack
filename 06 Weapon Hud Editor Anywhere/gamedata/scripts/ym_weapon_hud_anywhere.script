@@ -768,9 +768,18 @@ function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXReset()
     debug("Resetting current Weapon DLTX Changes")
 end
 
--- local _init = ui_debug_wpn_hud.WpnHudEditor.__init
--- function ui_debug_wpn_hud.WpnHudEditor:__init(owner, section) super()
---     _init(self, owner, section)
+local _clean_cache_dbg = ui_debug_wpn_hud.WpnHudEditor.CleanCacheDbg
+function ui_debug_wpn_hud.WpnHudEditor:CleanCacheDbg()
+    -- _clean_cache_dbg(self)
+    local path = get_game_config_path() 
+    path = path and (path .. cache_name) or ""
+    if (path ~= "") then
+        local ini_io = io.open(path, 'w')
+        ini_io:close()
+        override_debug_cache()
+        self:Print(nil, cache_name .. " file cleaned")
+    end
+end
 
 --     debug("initing new callbacks")
 --     self:InitNewCallbacks()
