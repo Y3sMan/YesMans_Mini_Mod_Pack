@@ -1,9 +1,0 @@
-<!-- <cap_ratio x="54" y="590" width="300" height="40" stretch="1">
-    <text r="250" g="250" b="250" font="letterica18" align="l" vert_align="c">st_ui_dbg_hud_ratio</text>
-</cap_ratio>
-
-
-<btn_save x="20" y="710" width="150" height="30" stretch="1">
-    <text align="c" font="letterica16">st_ui_dbg_item_btn_apply</text>
-    <texture>ui_button_ordinary</texture>
-</btn_save> -->
