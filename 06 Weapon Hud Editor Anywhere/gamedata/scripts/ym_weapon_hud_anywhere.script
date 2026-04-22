@@ -678,10 +678,91 @@ function ui_debug_wpn_hud.WpnHudEditor:InitCallBacks()
 
     _init_callbacks(self)
 end
+-- function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXSave()
 
-function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXSave()
-    debug("Saving current Weapon DLTX Changes")
-end
+--     -- only do dltx save if holding ALT
+--     if not mcm or not mcm.MOD_ALT then
+--         display_msg("There is no going back! If you want to save to DLTX, hold ALT and save again!")
+--         return
+--     end
+
+--     local section = self.section
+--     debug("Saving current Weapon DLTX Changes for weapon %s", section)
+
+--     local function save_alt_aim_status()
+--         local alt_aim_status = self.btn_ym_alt_aim:GetCheck()
+--         debug("alt aim check status = %s", alt_aim_status)
+--         local parent = section -- get_sec_parent(section)
+--         debug("parent sec = %s", parent)
+
+--         local ini_cc = ui_debug_launcher.ini_cc
+--         local alt_aim_par = "use_alt_aim_hud"
+
+--         local cached_val = ini_cc:r_value(parent, alt_aim_par)
+--         debug("cached use_alt_aim_hud = %s", cached_val)
+
+--         if not (cached_val and cached_val ~= "") then
+--             local old_val = ini_sys:r_string_ex(parent, alt_aim_par)
+--             debug("old use_alt_aim_hud = %s", old_val)
+--             ini_cc:w_value(parent, alt_aim_par, old_val)
+--             ini_cc:save()
+--         end
+
+--         local is_alt_aim_changed = (alt_aim_status ~= cached_val) and true or false
+
+--         if is_alt_aim_changed then
+--             debug("saving new use_alt_aim_hud status = %s", alt_aim_status)
+--             ini_cc:w_value(parent, alt_aim_par, alt_aim_status)
+--             ini_cc:save()
+--             display_msg("Make sure to reload a save to refresh Alt Aim settings!")
+--         end
+--     end
+
+--     local function delay_reload()
+
+--         reload_configs()
+
+--         hud_adjust.remove_hud_model(section)
+
+--         return true
+--     end
+
+--     local function delay_edit()
+--         save_alt_aim_status()
+
+--         ------------------------------------------------
+--         debug("editing dltx")
+--         -- local fullpath = dbg_cache 
+--         -- local ltx = io.open(fullpath, "rb")
+--         local ltx = get_cache_file('rb')
+
+--         if ltx then
+--             local data = ltx:read("*all")
+--             local new_data
+--             ltx:close()
+--             if data then
+--                 -- debug_print_table("data", data)
+--                 debug("data = %s", data)
+--                 new_data = string.gsub(data, "%[", "![")
+--                 new_data = clean_excess_newlines(new_data)
+--                 -- new_data = string.gsub(new_data, "[", "![") or new_data
+--                 debug("new data = %s", new_data)
+                
+--                 -- write changes to dltx
+--                 -- ltx = io.open(tmp_dir, "w")
+--                 local ltx = get_dltx_file('w')
+                
+--                 if ltx then
+--                     ltx:write(new_data)
+--                     ltx:close()
+--                 end
+--             end
+--         end
+
+--         -- end
+
+--         -- create refresh event
+--         dte.CreateTimeEvent("ym_wpn_hud_reload", "ym_wpn_hud_reload", 1, delay_reload)
 
 function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXReset()
     debug("Resetting current Weapon DLTX Changes")
