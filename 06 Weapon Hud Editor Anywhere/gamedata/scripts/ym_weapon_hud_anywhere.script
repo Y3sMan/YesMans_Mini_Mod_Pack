@@ -207,7 +207,7 @@ end
 -- Imports
 local start_weapon = ui_debug_launcher.start_wpn_hud_editor
 local prepare = ui_debug_launcher.prepare
-local clean_memo = ui_debug_wpn_hud.WpnHudEditor.CleanMemo
+-- local clean_memo = ui_debug_wpn_hud.WpnHudEditor.CleanMemo
 local reload_wpn_hud = ui_debug_launcher.reload_wpn_hud
 local dte = demonized_time_events
 local mcm = ui_mcm
@@ -303,7 +303,7 @@ function get_config_file(filepath, io_args)
     return ltx or nil
 end
 
----Return `ym_wpn_hud_cache` file
+---Return `ym_wpn_hud_cache.ltx` file
 ---@param io_args string: arguments to passthrough to `io.open`
 ---@return file*?
 function get_cache_file(io_args)
@@ -390,18 +390,41 @@ function fixup_dltx(str_in)
 end
 
 
----Reset dltx changes for current wpn
----@return boolean success:  whether current wpn section dltx was reset successfully
-function reset_dltx_changes(wpn)
-
-	local wpn = db.actor:active_item()
-    local wpn_sec = wpn:section()
-    local parent_sec = nil
-    if wpn_has_parent(wpn_sec) then
-        parent_sec = get_parent_wpn(wpn_sec)
+---Reset hud all changes for wpn
+---@param wpn string: weapon hud section
+function reset_cache_section(wpn)
+    local path = get_game_config_path()
+    local ltx = path and utils_data.cfg_file(path .. "//" .. cache_name, true)
+    local wpn_hud = wpn .. "_hud"
+    local keys = ltx and ltx:GetKeys(wpn_hud) or {}
+    
+    -- clear _hud section values in cache
+    for k,v in pairs(keys) do
+        debug("k,v = %s, %s", k, v)
+        -- ltx:SetValue(wpn_hud, k, nil)
+        ltx:ClearValue(wpn_hud, k)
     end
 
-    debug("wpn = %s and parent = %s", wpn_sec, parent_sec)
+    -- clear use_alt_aim_hud parameter
+    ltx:ClearValue(wpn, "use_alt_aim_hud")
+
+    ltx:Save()
+end
+
+---Reset dltx changes for current wpn
+---@return boolean success:  whether current wpn section dltx was reset successfully
+function reset_dltx_section(wpn)
+
+	-- local wpn = db.actor:active_item()
+    -- local wpn_sec = wpn
+    local hud_sec = ini_sys:r_string_ex(wpn, "hud")
+    debug("reseting hud section %s", hud_sec)
+    local parent_sec = nil
+    if wpn_has_parent(wpn) then
+        parent_sec = get_parent_wpn(wpn)
+    end
+
+    debug("wpn = %s and parent = %s", wpn, parent_sec)
     
 
     -- Read data from our dltx
@@ -419,52 +442,60 @@ function reset_dltx_changes(wpn)
             [wpn_2]
                 stuff2 = 2,3,4
         --]]
-        local hud_wpn = wpn_sec .. "_hud"
-        hud_wpn = "!%[" .. hud_wpn .. "%]"
+        local to_change = { }
+        to_change.wpn_sec = wpn
+        to_change.wpn_hud_sec = wpn .. "_hud"
 
-        local inbw_str_to_find = hud_wpn .. ".-%!%["
-        local eof_str_to_find = hud_wpn .. ".*"
+        local new_dltx_str = test_data
+        for _, sec in pairs(to_change) do
+            -- local hud_wpn = wpn .. "_hud"
+            local hud_wpn = sec
+            hud_wpn = "!%[" .. hud_wpn .. "%]"
 
-        local inbw_str_to_replace = "!["
-        local eof_str_to_replace = ""
+            local inbw_str_to_find = hud_wpn .. ".-%!%["
+            local eof_str_to_find = hud_wpn .. ".*"
 
-        local new_test_data = test_data
-
-        -- check if current wpn is even in dltx
-        local i,j = string_find(new_test_data, hud_wpn)
-        debug("i, j = %s, %s", i, j)
-
-        if not i  then return false end
-
-        -- test if wpn is inbetween other sections or at the end of the file
-        i, j = string_find(new_test_data, inbw_str_to_find)
+            local inbw_str_to_replace = "!["
+            local eof_str_to_replace = ""
 
 
-        -- at eof
-        if not i then
-            i, j = string_find(new_test_data, eof_str_to_find)
-            new_test_data = string.gsub(new_test_data, eof_str_to_find, eof_str_to_replace)
-            debug("wpn %s is at eof", wpn_sec)
-        -- in between
-        else
-            debug("wpn %s is inbetween other sections", wpn_sec)
-            new_test_data = string.gsub(new_test_data, inbw_str_to_find, inbw_str_to_replace)
+            -- check if current wpn is even in dltx
+            local i, j = string_find(new_dltx_str, hud_wpn)
+            debug("i, j = %s, %s", i, j)
+
+            if not i then return false end
+
+            -- test if wpn is inbetween other sections or at the end of the file
+            i, j = string_find(new_dltx_str, inbw_str_to_find)
+
+
+            -- at eof
+            if not i then
+                i, j = string_find(new_dltx_str, eof_str_to_find)
+                new_dltx_str = string.gsub(new_dltx_str, eof_str_to_find, eof_str_to_replace)
+                debug("wpn %s is at eof", wpn)
+                -- in between
+            else
+                debug("wpn %s is inbetween other sections", wpn)
+                new_dltx_str = string.gsub(new_dltx_str, inbw_str_to_find, inbw_str_to_replace)
+            end
         end
 
-        new_test_data = fixup_dltx(new_test_data)
-        debug("new test data = %s", new_test_data)
+        new_dltx_str = fixup_dltx(new_dltx_str)
+        debug("new test data = %s", new_dltx_str)
 
         local ltx = get_dltx_file('w')
-
         if ltx then
-            ltx:write(new_test_data)
+            ltx:write(new_dltx_str)
             ltx:close()
 
             -- clean_memo()
-            local wpnhud = ui_debug_wpn_hud.GUI
-            if wpnhud then wpnhud:CleanMemo() debug("cleaning ui_debug_wpn_hud memory") wpnhud:Reset(true) end
+            -- local wpnhud = ui_debug_wpn_hud.GUI
+            -- if wpnhud then wpnhud:CleanMemo() debug("cleaning ui_debug_wpn_hud memory") wpnhud:Reset(true) end
 
-            reload_configs()
+            -- clean_memory()
+            
+            -- reload_configs()
         end
         
         return true
@@ -766,6 +797,17 @@ end
 
 function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXReset()
     debug("Resetting current Weapon DLTX Changes")
+    if mcm and mcm.get_mod_key(ALT_MOD) then
+        reset_cache_section(self.section)
+        reset_dltx_section(self.section)
+        reload_configs()
+        self:CleanMemo()
+        self:Reset(true)
+        override_debug_cache()
+    else
+        display_msg("Hold ALT and try again to delete dltx changes")
+        return
+    end
 end
 
 local _clean_cache_dbg = ui_debug_wpn_hud.WpnHudEditor.CleanCacheDbg
