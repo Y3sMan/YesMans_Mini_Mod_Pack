@@ -215,20 +215,16 @@ local string_find = string.find
 
 
 -- definitions
--- NEW_LTX = "mod_system_ym_wpn_hud_edits.ltx"
+
+--- keybinding used to open wpn hud editor in non-debug mode
 KEYBIND = key_bindings.kCUSTOM17
+--- modifier to use to press reset and save buttons
 ALT_MOD = 3 -- for use with ui_mcm.get_mod_key
 
-local t_dir = "items\\weapons\\"
--- local dbg_cache  = "Z:\\mnt\\Games\\Modding\\GAMMA\\Anomaly 1.5.3\\gamedata\\configs\\cache_dbg.ltx"
--- local tmp_dir = "Z:\\mnt\\Games\\Games\\Stalker Mods\\Anomaly GAMMA\\MO2 2.5\\mods\\Wpn Hud Anywhere - Master\\gamedata\\configs\\mod_system_zzzzzz_ym_wpn_hud_edits.ltx"
-
+--- dltx file to save hud edits to
 dltx_name = "mod_system_zzzzzz_ym_wpn_hud_edits.ltx"
+--- redirect wpn hud editor to our new cache file
 cache_name = "ym_wpn_hud_cache.ltx"
--- local tmp_dir = "Z:\\mnt\\Games\\Modding\\GAMMA\\Anomaly 1.5.3\\gamedata\\configs\\mod_system_zzzzzz_ym_wpn_hud_edits.ltx"
-
-local org_wpn_hud_values = {}
-
 
 
 --------------------------------------------
@@ -497,14 +493,6 @@ function reset_dltx_section(wpn)
         if ltx then
             ltx:write(new_dltx_str)
             ltx:close()
-
-            -- clean_memo()
-            -- local wpnhud = ui_debug_wpn_hud.GUI
-            -- if wpnhud then wpnhud:CleanMemo() debug("cleaning ui_debug_wpn_hud memory") wpnhud:Reset(true) end
-
-            -- clean_memory()
-            
-            -- reload_configs()
         end
         
         return true
@@ -518,26 +506,7 @@ function override_debug_cache()
     ui_debug_launcher.ini_cc = ini_file_ex(cache_name, true)
 end
 
-
--- function reset_dltx_better()
---     local ltx = utils_data.cfg_file(tmp_dir, true)
---     if ltx then
---         local wpn = db.actor:active_item()
---         local wpn_sec = wpn:section()
-
---         local ks = wpn_sec and ltx:GetKeys(wpn_sec)
---         debug_print_table("cfg_file stuff", {
---             ["ks"] = ks or false,
---             ["fname"] = ltx.fname or false,
---             ["dir"] = ltx.directory or false
---         })
---     end
- 
--- end
-
 --#endregion--------------------------------
-
-
 
 --------------------------------------------
 --#region  Events
@@ -550,44 +519,81 @@ function on_key_release(key)
     if (bind == KEYBIND) then
         -- necessary prepare function from ui_debug_launcher
         prepare()
+
         -- make this wpn hud save to our own cache file
-        -- ui_debug_launcher.ini_cc = ini_file_ex(cache_name, true)
         override_debug_cache()
+
         -- launch hud editor
         start_weapon()
     end
 end
 
--- override WpnHudEditor's OnKeyboard events
-local _on_keyboard = ui_debug_wpn_hud.WpnHudEditor.OnKeyboard
-function ui_debug_wpn_hud.WpnHudEditor:OnKeyboard(dik,keyboard_action)
-    -- reset event
-    if dik == DIK_keys.DIK_NUMPAD0 then
-        -- only reset if holding ALT
-        if  mcm and mcm.get_mod_key(ALT_MOD) then
-                -- reset_configs()
-                
-                reset_dltx_section()
-                reload_configs()
-        else
-            display_msg("Are you sure? Check the console for further instructions.")
-            -- display_news_tip("Hold ALT and try again to delete dltx changes")
-            -- display_news_tip("Hold SHIFT+ALT and try again to delete BOTH dltx changes and cache_dbg.ltx")
-            info("Hold ALT and try again to delete dltx changes")
-            -- info("Hold SHIFT+ALT and try again to delete BOTH dltx changes and ym_wpn_hud_cache.ltx")
-            return
-        end
 
 
-    else
-    
-        _on_keyboard(self, dik, keyboard_action)
-    end
+--------------------------------------------
+--#region WpnHudEditor Class function overrides
+--------------------------------------------
+
+-- On hud start, point namespace copy of ui_debug_launcher.ini_cc to our own cache file
+local _init = ui_debug_wpn_hud.WpnHudEditor.__init
+function ui_debug_wpn_hud.WpnHudEditor:__init(owner, section) super()
+    _init(self, owner, section)
+
+    info("overriding ini file with our own: %s", cache_name)
+    override_debug_cache()
 end
 
 
+-- override InitControls
+-- add new buttons
+local _init_controls = ui_debug_wpn_hud.WpnHudEditor.InitControls
+function ui_debug_wpn_hud.WpnHudEditor:InitControls()
+    _init_controls(self)
 
 
+    -- alt aim button
+    ------------------------------------------------
+
+    local xml = self.xml
+    xml:InitStatic("dbg_wpn_hud_editor:cap_ym_alt_aim", self.dialog)
+
+    self.btn_ym_alt_aim = xml:InitCheck("dbg_wpn_hud_editor:check_ym_alt_aim", self.dialog)
+    self:Register(self.btn_ym_alt_aim, "btn_ym_alt_aim")
+
+    -- set check status based off weapons `use_alt_aim_hud` property
+    local wpn_sec = self.section or false -- ui_debug_wpn_hud.GUI and ui_debug_wpn_hud.GUI.section and ui_debug_wpn_hud.GUI.section
+    local is_alt_aim = false 
+    if SYS_GetParam(0, wpn_sec, "use_alt_aim_hud") == "true" then
+        is_alt_aim = true
+    end
+
+    debug_print_table("init alt aim check status", {
+        ["section"] = wpn_sec or false,
+        ["use_alt_aim_hud"] = is_alt_aim or false
+    })
+
+    self.btn_ym_alt_aim:SetCheck(is_alt_aim)
+
+    -- reset button
+    ------------------------------------------------
+
+    self.btn_ym_reset = xml:Init3tButton("dbg_wpn_hud_editor:btn_ym_reset", self.dialog)
+    self:Register(self.btn_ym_reset, "btn_ym_reset")
+end
+
+-- override InitCallBacks
+local _init_callbacks = ui_debug_wpn_hud.WpnHudEditor.InitCallBacks
+function ui_debug_wpn_hud.WpnHudEditor:InitCallBacks()
+    debug("adding new callbacks")
+    -- new buttons
+    self:AddCallback("btn_ym_reset", ui_events.BUTTON_CLICKED, self.OnButtonDLTXReset, self)
+
+    _init_callbacks(self)
+end
+
+----------------
+
+-- save to dltx on original "Apply" button
 local _on_btn_save = ui_debug_wpn_hud.WpnHudEditor.OnButtonSave
 function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
     _on_btn_save(self)
@@ -640,12 +646,11 @@ function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
     end
 
     local function delay_edit()
+        ------
         save_alt_aim_status()
 
-        ------------------------------------------------
+        -------
         debug("editing dltx")
-        -- local fullpath = dbg_cache 
-        -- local ltx = io.open(fullpath, "rb")
         local ltx = get_cache_file('rb')
 
         if ltx then
@@ -657,11 +662,9 @@ function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
                 debug("data = %s", data)
                 new_data = string.gsub(data, "%[", "![")
                 new_data = clean_excess_newlines(new_data)
-                -- new_data = string.gsub(new_data, "[", "![") or new_data
                 debug("new data = %s", new_data)
                 
                 -- write changes to dltx
-                -- ltx = io.open(tmp_dir, "w")
                 local ltx = get_dltx_file('w')
                 
                 if ltx then
@@ -670,8 +673,6 @@ function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
                 end
             end
         end
-
-        -- end
 
         -- create refresh event
         dte.CreateTimeEvent("ym_wpn_hud_reload", "ym_wpn_hud_reload", 1, delay_reload)
@@ -683,22 +684,20 @@ function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
 
 end
 
---------------------------------------------
---#region New Buttons
---------------------------------------------
 
--- function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXSave()
---     debug("Saving current Weapon DLTX Changes")
--- end
-
--- function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXReset()
---     debug("Resetting current Weapon DLTX Changes")
--- end
-
-
--- function ui_debug_wpn_hud.WpnHudEditor:On()
---     debug("Resetting current Weapon DLTX Changes")
--- end
+-- completely overwrite CleanCacheDbg function with a nearly identical one, only this one
+-- cleans *our* cache file instead
+function ui_debug_wpn_hud.WpnHudEditor:CleanCacheDbg()
+    -- _clean_cache_dbg(self)
+    local path = get_game_config_path() 
+    path = path and (path .. cache_name) or ""
+    if (path ~= "") then
+        local ini_io = io.open(path, 'w')
+        ini_io:close()
+        override_debug_cache()
+        self:Print(nil, cache_name .. " file cleaned")
+    end
+end
 
 
 ----------------
@@ -706,152 +705,7 @@ end
 -- resets dltx settings for current weapon
 ----------------
 
--- override InitControls
-local _init_controls = ui_debug_wpn_hud.WpnHudEditor.InitControls
-function ui_debug_wpn_hud.WpnHudEditor:InitControls()
-    _init_controls(self)
 
-
-    -- alt aim button
-    ------------------------------------------------
-
-    local xml = self.xml
-    xml:InitStatic("dbg_wpn_hud_editor:cap_ym_alt_aim", self.dialog)
-
-    self.btn_ym_alt_aim = xml:InitCheck("dbg_wpn_hud_editor:check_ym_alt_aim", self.dialog)
-    self:Register(self.btn_ym_alt_aim, "btn_ym_alt_aim")
-
-    -- set check status based off weapons `use_alt_aim_hud` property
-    local wpn_sec = self.section or false -- ui_debug_wpn_hud.GUI and ui_debug_wpn_hud.GUI.section and ui_debug_wpn_hud.GUI.section
-    local is_alt_aim = false 
-    if SYS_GetParam(0, wpn_sec, "use_alt_aim_hud") == "true" then
-        is_alt_aim = true
-    end
-
-    debug_print_table("init alt aim check status", {
-        ["section"] = wpn_sec or false,
-        ["use_alt_aim_hud"] = is_alt_aim or false
-    })
-
-    self.btn_ym_alt_aim:SetCheck(is_alt_aim)
-
-    -- save button
-    ------------------------------------------------
-
-    -- self.btn_ym_save = xml:Init3tButton("dbg_wpn_hud_editor:btn_ym_save", self.dialog)
-    -- self:Register(self.btn_ym_save, "btn_ym_save")
-
-    -- reset button
-    ------------------------------------------------
-
-    self.btn_ym_reset = xml:Init3tButton("dbg_wpn_hud_editor:btn_ym_reset", self.dialog)
-    self:Register(self.btn_ym_reset, "btn_ym_reset")
-end
-
--- override InitCallBacks
-local _init_callbacks = ui_debug_wpn_hud.WpnHudEditor.InitCallBacks
-
--- function ui_debug_wpn_hud.WpnHudEditor:InitNewCallbacks()
-function ui_debug_wpn_hud.WpnHudEditor:InitCallBacks()
-    debug("adding new callbacks")
-    -- new buttons
-    -- self:AddCallback("btn_ym_save", ui_events.BUTTON_CLICKED, self.OnButtonDLTXSave, self)
-    self:AddCallback("btn_ym_reset", ui_events.BUTTON_CLICKED, self.OnButtonDLTXReset, self)
-    -- self:AddCallback("btn_copy", ui_events.BUTTON_CLICKED, self.OnButtonCopy, self)
-
-    _init_callbacks(self)
-end
--- function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXSave()
-
---     -- only do dltx save if holding ALT
---     if not mcm or not mcm.MOD_ALT then
---         display_msg("There is no going back! If you want to save to DLTX, hold ALT and save again!")
---         return
---     end
-
---     local section = self.section
---     debug("Saving current Weapon DLTX Changes for weapon %s", section)
-
---     local function save_alt_aim_status()
---         local alt_aim_status = self.btn_ym_alt_aim:GetCheck()
---         debug("alt aim check status = %s", alt_aim_status)
---         local parent = section -- get_sec_parent(section)
---         debug("parent sec = %s", parent)
-
---         local ini_cc = ui_debug_launcher.ini_cc
---         local alt_aim_par = "use_alt_aim_hud"
-
---         local cached_val = ini_cc:r_value(parent, alt_aim_par)
---         debug("cached use_alt_aim_hud = %s", cached_val)
-
---         if not (cached_val and cached_val ~= "") then
---             local old_val = ini_sys:r_string_ex(parent, alt_aim_par)
---             debug("old use_alt_aim_hud = %s", old_val)
---             ini_cc:w_value(parent, alt_aim_par, old_val)
---             ini_cc:save()
---         end
-
---         local is_alt_aim_changed = (alt_aim_status ~= cached_val) and true or false
-
---         if is_alt_aim_changed then
---             debug("saving new use_alt_aim_hud status = %s", alt_aim_status)
---             ini_cc:w_value(parent, alt_aim_par, alt_aim_status)
---             ini_cc:save()
---             display_msg("Make sure to reload a save to refresh Alt Aim settings!")
---         end
---     end
-
---     local function delay_reload()
-
---         reload_configs()
-
---         hud_adjust.remove_hud_model(section)
-
---         return true
---     end
-
---     local function delay_edit()
---         save_alt_aim_status()
-
---         ------------------------------------------------
---         debug("editing dltx")
---         -- local fullpath = dbg_cache 
---         -- local ltx = io.open(fullpath, "rb")
---         local ltx = get_cache_file('rb')
-
---         if ltx then
---             local data = ltx:read("*all")
---             local new_data
---             ltx:close()
---             if data then
---                 -- debug_print_table("data", data)
---                 debug("data = %s", data)
---                 new_data = string.gsub(data, "%[", "![")
---                 new_data = clean_excess_newlines(new_data)
---                 -- new_data = string.gsub(new_data, "[", "![") or new_data
---                 debug("new data = %s", new_data)
-                
---                 -- write changes to dltx
---                 -- ltx = io.open(tmp_dir, "w")
---                 local ltx = get_dltx_file('w')
-                
---                 if ltx then
---                     ltx:write(new_data)
---                     ltx:close()
---                 end
---             end
---         end
-
---         -- end
-
---         -- create refresh event
---         dte.CreateTimeEvent("ym_wpn_hud_reload", "ym_wpn_hud_reload", 1, delay_reload)
-
---         return true
---     end
-
---     dte.CreateTimeEvent("wpn_save", "wpn_save", 0, delay_edit)
--- end
 function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXReset()
     debug("Resetting current Weapon DLTX Changes")
     if mcm and mcm.get_mod_key(ALT_MOD) then
@@ -865,27 +719,6 @@ function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXReset()
         display_msg("Hold ALT and try again to delete dltx changes")
         return
     end
-end
-
-local _clean_cache_dbg = ui_debug_wpn_hud.WpnHudEditor.CleanCacheDbg
-function ui_debug_wpn_hud.WpnHudEditor:CleanCacheDbg()
-    -- _clean_cache_dbg(self)
-    local path = get_game_config_path() 
-    path = path and (path .. cache_name) or ""
-    if (path ~= "") then
-        local ini_io = io.open(path, 'w')
-        ini_io:close()
-        override_debug_cache()
-        self:Print(nil, cache_name .. " file cleaned")
-    end
-end
-
-local _init = ui_debug_wpn_hud.WpnHudEditor.__init
-function ui_debug_wpn_hud.WpnHudEditor:__init(owner, section) super()
-    _init(self, owner, section)
-
-    debug("overriding ini file with our own: %s", cache_name)
-    override_debug_cache()
 end
 ----------------
 --#endregion--------------------------------
