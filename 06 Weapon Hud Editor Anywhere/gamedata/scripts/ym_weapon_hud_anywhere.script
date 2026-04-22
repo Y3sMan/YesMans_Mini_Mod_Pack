@@ -273,6 +273,14 @@ function wpn_has_parent(wep_sec)
 	return (get_parent_wpn(wep_sec) ~= wep_sec) 
 end
 
+---Takes wpn_sec and returns the non_hud section
+---@param wpn_sec string: weapon section ending with `_hud`
+---@return string: parent weapon section string without `_hud`
+function get_sec_parent(wpn_sec)
+    local p = string.gsub(wpn_sec, "_hud", "") or ""
+    return p
+end
+
 --------------------------------------------
 --#region Config Utilities
 --------------------------------------------
@@ -585,22 +593,57 @@ local _on_btn_save = ui_debug_wpn_hud.WpnHudEditor.OnButtonSave
 function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
     _on_btn_save(self)
 
-    debug("alt aim check status = %s", self.btn_ym_alt_aim:GetCheck())
-
     -- only do dltx save if holding ALT
     if not mcm or not mcm.MOD_ALT then
         display_msg("There is no going back! If you want to save to DLTX, hold ALT and save again!")
         return
     end
 
+    local section = self.section
+    debug("Saving current Weapon DLTX Changes for weapon %s", section)
+
+    local function save_alt_aim_status()
+        local alt_aim_status = self.btn_ym_alt_aim:GetCheck()
+        debug("alt aim check status = %s", alt_aim_status)
+        local parent = section -- get_sec_parent(section)
+        debug("parent sec = %s", parent)
+
+        local ini_cc = ui_debug_launcher.ini_cc
+        local alt_aim_par = "use_alt_aim_hud"
+
+        local cached_val = ini_cc:r_value(parent, alt_aim_par)
+        debug("cached use_alt_aim_hud = %s", cached_val)
+
+        if not (cached_val and cached_val ~= "") then
+            local old_val = ini_sys:r_string_ex(parent, alt_aim_par)
+            debug("old use_alt_aim_hud = %s", old_val)
+            ini_cc:w_value(parent, alt_aim_par, old_val)
+            ini_cc:save()
+        end
+
+        local is_alt_aim_changed = (alt_aim_status ~= cached_val) and true or false
+
+        if is_alt_aim_changed then
+            debug("saving new use_alt_aim_hud status = %s", alt_aim_status)
+            ini_cc:w_value(parent, alt_aim_par, alt_aim_status)
+            ini_cc:save()
+            display_msg("Make sure to reload a save to refresh Alt Aim settings!")
+        end
+    end
 
     local function delay_reload()
+
         reload_configs()
+
+        hud_adjust.remove_hud_model(section)
 
         return true
     end
 
     local function delay_edit()
+        save_alt_aim_status()
+
+        ------------------------------------------------
         debug("editing dltx")
         -- local fullpath = dbg_cache 
         -- local ltx = io.open(fullpath, "rb")
@@ -638,6 +681,7 @@ function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
     end
 
     dte.CreateTimeEvent("wpn_save", "wpn_save", 0, delay_edit)
+
 end
 
 --------------------------------------------
@@ -679,9 +723,11 @@ function ui_debug_wpn_hud.WpnHudEditor:InitControls()
     self:Register(self.btn_ym_alt_aim, "btn_ym_alt_aim")
 
     -- set check status based off weapons `use_alt_aim_hud` property
-    local wpn_sec = self.section or
-        false -- ui_debug_wpn_hud.GUI and ui_debug_wpn_hud.GUI.section and ui_debug_wpn_hud.GUI.section
-    local is_alt_aim = SYS_GetParam(0, wpn_sec, "use_alt_aim_hud") or false
+    local wpn_sec = self.section or false -- ui_debug_wpn_hud.GUI and ui_debug_wpn_hud.GUI.section and ui_debug_wpn_hud.GUI.section
+    local is_alt_aim = false 
+    if SYS_GetParam(0, wpn_sec, "use_alt_aim_hud") == "true" then
+        is_alt_aim = true
+    end
 
     debug_print_table("init alt aim check status", {
         ["section"] = wpn_sec or false,
@@ -802,6 +848,11 @@ end
 --         -- create refresh event
 --         dte.CreateTimeEvent("ym_wpn_hud_reload", "ym_wpn_hud_reload", 1, delay_reload)
 
+--         return true
+--     end
+
+--     dte.CreateTimeEvent("wpn_save", "wpn_save", 0, delay_edit)
+-- end
 function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXReset()
     debug("Resetting current Weapon DLTX Changes")
     if mcm and mcm.get_mod_key(ALT_MOD) then
