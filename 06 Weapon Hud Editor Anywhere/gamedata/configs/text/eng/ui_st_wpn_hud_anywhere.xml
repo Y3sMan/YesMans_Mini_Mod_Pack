@@ -8,7 +8,7 @@
 
     <string id="st_ui_dbg_item_btn_ym_reset">
         <text>
-            Reset DLTX
+            Reset Section DLTX (ALT)
         </text>
     </string>
     <string id="st_ui_dbg_item_check_ym_alt_aim">

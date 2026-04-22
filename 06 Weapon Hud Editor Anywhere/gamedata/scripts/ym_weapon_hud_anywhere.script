@@ -217,6 +217,7 @@ local string_find = string.find
 -- definitions
 -- NEW_LTX = "mod_system_ym_wpn_hud_edits.ltx"
 KEYBIND = key_bindings.kCUSTOM17
+ALT_MOD = 3 -- for use with ui_mcm.get_mod_key
 
 local t_dir = "items\\weapons\\"
 -- local dbg_cache  = "Z:\\mnt\\Games\\Modding\\GAMMA\\Anomaly 1.5.3\\gamedata\\configs\\cache_dbg.ltx"
@@ -357,7 +358,7 @@ function reset_configs()
     reset_cache()
     reset_dltx_all()
 
-    reload_configs()
+    -- reload_configs()
     display_msg("Resetting the DLTX and ym_wpn_hud_cache.ltx")
 end
 
@@ -563,18 +564,17 @@ function ui_debug_wpn_hud.WpnHudEditor:OnKeyboard(dik,keyboard_action)
     -- reset event
     if dik == DIK_keys.DIK_NUMPAD0 then
         -- only reset if holding ALT
-        if  mcm and mcm.MOD_ALT then
-            if mcm and mcm.MOD_SHIFT then
-                reset_configs()
-            else
-                reset_dltx_changes()
-            end
+        if  mcm and mcm.get_mod_key(ALT_MOD) then
+                -- reset_configs()
+                
+                reset_dltx_section()
+                reload_configs()
         else
             display_msg("Are you sure? Check the console for further instructions.")
             -- display_news_tip("Hold ALT and try again to delete dltx changes")
             -- display_news_tip("Hold SHIFT+ALT and try again to delete BOTH dltx changes and cache_dbg.ltx")
             info("Hold ALT and try again to delete dltx changes")
-            info("Hold SHIFT+ALT and try again to delete BOTH dltx changes and ym_wpn_hud_cache.ltx")
+            -- info("Hold SHIFT+ALT and try again to delete BOTH dltx changes and ym_wpn_hud_cache.ltx")
             return
         end
 
@@ -588,7 +588,6 @@ end
 
 
 
--- change file to save changes to
 local _on_btn_save = ui_debug_wpn_hud.WpnHudEditor.OnButtonSave
 function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
     _on_btn_save(self)
@@ -739,8 +738,8 @@ function ui_debug_wpn_hud.WpnHudEditor:InitControls()
     -- save button
     ------------------------------------------------
 
-    self.btn_ym_save = xml:Init3tButton("dbg_wpn_hud_editor:btn_ym_save", self.dialog)
-    self:Register(self.btn_ym_save, "btn_ym_save")
+    -- self.btn_ym_save = xml:Init3tButton("dbg_wpn_hud_editor:btn_ym_save", self.dialog)
+    -- self:Register(self.btn_ym_save, "btn_ym_save")
 
     -- reset button
     ------------------------------------------------
@@ -756,7 +755,7 @@ local _init_callbacks = ui_debug_wpn_hud.WpnHudEditor.InitCallBacks
 function ui_debug_wpn_hud.WpnHudEditor:InitCallBacks()
     debug("adding new callbacks")
     -- new buttons
-    self:AddCallback("btn_ym_save", ui_events.BUTTON_CLICKED, self.OnButtonDLTXSave, self)
+    -- self:AddCallback("btn_ym_save", ui_events.BUTTON_CLICKED, self.OnButtonDLTXSave, self)
     self:AddCallback("btn_ym_reset", ui_events.BUTTON_CLICKED, self.OnButtonDLTXReset, self)
     -- self:AddCallback("btn_copy", ui_events.BUTTON_CLICKED, self.OnButtonCopy, self)
 
