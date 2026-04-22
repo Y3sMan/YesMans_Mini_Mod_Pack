@@ -504,6 +504,12 @@ function reset_dltx_section(wpn)
     return false
 end
 
+---Override ui_debug_wpn_hud's namespace variable `ini_cc`
+function override_debug_cache()
+    ui_debug_launcher.ini_cc = ini_file_ex(cache_name, true)
+end
+
+
 -- function reset_dltx_better()
 --     local ltx = utils_data.cfg_file(tmp_dir, true)
 --     if ltx then
@@ -536,7 +542,8 @@ function on_key_release(key)
         -- necessary prepare function from ui_debug_launcher
         prepare()
         -- make this wpn hud save to our own cache file
-        ui_debug_launcher.ini_cc = ini_file_ex(cache_name, true)
+        -- ui_debug_launcher.ini_cc = ini_file_ex(cache_name, true)
+        override_debug_cache()
         -- launch hud editor
         start_weapon()
     end
@@ -823,9 +830,13 @@ function ui_debug_wpn_hud.WpnHudEditor:CleanCacheDbg()
     end
 end
 
---     debug("initing new callbacks")
---     self:InitNewCallbacks()
--- end
+local _init = ui_debug_wpn_hud.WpnHudEditor.__init
+function ui_debug_wpn_hud.WpnHudEditor:__init(owner, section) super()
+    _init(self, owner, section)
+
+    debug("overriding ini file with our own: %s", cache_name)
+    override_debug_cache()
+end
 ----------------
 --#endregion--------------------------------
 
