@@ -216,7 +216,7 @@ local string_find = string.find
 
 -- definitions
 
---- keybinding used to open wpn hud editor in non-debug mode
+--- keybinding used to open wpn hud editor in non-debug mode. Defaults to `kCUSTOM17`
 KEYBIND = key_bindings.kCUSTOM17
 --- modifier to use to press reset and save buttons
 ALT_MOD = 3 -- for use with ui_mcm.get_mod_key
