@@ -222,7 +222,7 @@ KEYBIND = key_bindings.kCUSTOM17
 ALT_MOD = 3 -- for use with ui_mcm.get_mod_key
 
 --- dltx file to save hud edits to
-dltx_name = "mod_system_zzzzzz_ym_wpn_hud_edits.ltx"
+dltx_name = "mod_system_zzzzzzzzzzzzzz_ym_wpn_hud_edits.ltx"
 --- redirect wpn hud editor to our new cache file
 cache_name = "ym_wpn_hud_cache.ltx"
 
