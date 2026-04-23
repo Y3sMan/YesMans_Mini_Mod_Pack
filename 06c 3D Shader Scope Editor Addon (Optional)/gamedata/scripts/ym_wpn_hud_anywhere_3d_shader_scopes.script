@@ -29,21 +29,19 @@ function patches()
     -- ui_debug_wpn_hud Overrides
     ----------------
     
-    info("Overriding ui_debug_wpn_hud.WpnHudEditor OnKeyboard")
     -- open shader editor while hud editor is open
+    info("Overriding ui_debug_wpn_hud.WpnHudEditor OnKeyboard")
     local _wpn_hud_on_keyboard = ui_debug_wpn_hud.WpnHudEditor.OnKeyboard
     function ui_debug_wpn_hud.WpnHudEditor:OnKeyboard(dik, keyboard_action)
-        if keyboard_action == ui_events.WINDOW_KEY_PRESSED then
-            if (dik == _shader_keybind) then
-                -- close wpn hud editor first
-                self:Close()
+        if (keyboard_action == ui_events.WINDOW_KEY_PRESSED) and (dik == _shader_keybind) then
+            -- close wpn hud editor first
+            self:Close()
 
-                -- open shader editor
-                opened_from_wpn_hud = true
-                _shader_on_key_press(_shader_keybind)
-            else
-                _wpn_hud_on_keyboard(self, dik, keyboard_action)
-            end
+            -- open shader editor
+            opened_from_wpn_hud = true
+            
+            -- carry on as normal
+            _shader_on_key_press(_shader_keybind)
         else
             _wpn_hud_on_keyboard(self, dik, keyboard_action)
         end
@@ -66,44 +64,46 @@ function patches()
     info("Overriding shader_scopes_editor.ShaderScopesEditor OnKeyboard")
     local _shader_on_keyboard = shader_scopes_editor.ShaderScopesEditor.OnKeyboard
     function shader_scopes_editor.ShaderScopesEditor:OnKeyboard(dik, keyboard_action)
-        if (keyboard_action == ui_events.WINDOW_KEY_PRESSED) then
-            if (dik == DIK_keys.DIK_ESCAPE) then
-                -- close shader editor
-                local wpn_section = shader_scopes_editor.wpn_section
-                local ms_count = shader_scopes_editor.ms_count
+        if (keyboard_action == ui_events.WINDOW_KEY_PRESSED) and (dik == DIK_keys.DIK_ESCAPE) then
+            -- close shader editor
+            local wpn_section = shader_scopes_editor.wpn_section
+            local ms_count = shader_scopes_editor.ms_count
 
-                shader_scopes_editor.GUI:HideDialog()
-                shader_scopes_editor.GUI:Show(false)
-                Unregister_UI("ShaderScopesEditor")
-                if (ms_count > 1) then
-                    shader_scopes_editor.share_values(wpn_section, ms_count)
-                end
-
-                -- if opened from wpn hud, reopen wpn hud
-                if not opened_from_wpn_hud then return end
-
-                opened_from_wpn_hud = false
-
-                -- reopen wpn hud editor
-                local function launch_wpn_hud()
-                    -- ym_weapon_hud_anywhere.on_key_release(key_bindings.kCUSTOM17)
-
-                    -- necessary prepare function from ui_debug_launcher
-                    ui_debug_launcher.prepare()
-
-                    -- make this wpn hud save to our own cache file
-                    ym_weapon_hud_anywhere.override_debug_cache()
-
-                    -- launch hud editor
-                    ui_debug_launcher.start_wpn_hud_editor()
-                    return true
-                end
-                if demonized_time_events then
-                    demonized_time_events.CreateTimeEvent("open_wpn_hud", "open_wpn_hud", 0, launch_wpn_hud)
-                end
-            else
-                _shader_on_keyboard(dik, keyboard_action)
+            shader_scopes_editor.GUI:HideDialog()
+            shader_scopes_editor.GUI:Show(false)
+            Unregister_UI("ShaderScopesEditor")
+            if (ms_count > 1) then
+                shader_scopes_editor.share_values(wpn_section, ms_count)
             end
+
+            -- if opened by itself first, just close it out normally
+            if not opened_from_wpn_hud then
+                ym_weapon_hud_anywhere.restore_debug_cache_reference()
+                return
+            end
+
+            -- else, reopen the wpn hud editor
+
+            opened_from_wpn_hud = false
+
+            -- reopen wpn hud editor
+            local function launch_wpn_hud()
+                -- ym_weapon_hud_anywhere.on_key_release(key_bindings.kCUSTOM17)
+
+                -- necessary prepare function from ui_debug_launcher
+                ui_debug_launcher.prepare()
+
+                -- make this wpn hud save to our own cache file
+                ym_weapon_hud_anywhere.override_debug_cache()
+
+                -- launch hud editor
+                ui_debug_launcher.start_wpn_hud_editor()
+                return true
+            end
+            if demonized_time_events then
+                demonized_time_events.CreateTimeEvent("open_wpn_hud", "open_wpn_hud", 0, launch_wpn_hud)
+            end
+            _shader_on_keyboard(dik, keyboard_action)
         end
     end
 
