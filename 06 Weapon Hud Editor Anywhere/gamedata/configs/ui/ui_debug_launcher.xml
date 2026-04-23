@@ -903,6 +903,26 @@
 				<d r="100" g="100" b="100"/>
 			</text_color>
 		</list_drag_mode>
+
+
+		<!-- YesMan's Additions -->
+
+
+		<!-- dltx reset wpn button -->
+		<btn_ym_reset x="300" y="710" width="150" height="30" stretch="1">
+			<text align="c" font="letterica16">st_ui_dbg_item_btn_ym_reset</text>
+			<texture>ui_button_ordinary</texture>
+		</btn_ym_reset>
+
+		<!-- toggle alt aim checkbox -->
+		<check_ym_alt_aim x="160" y="590" width="40" height="40" stretch="1">
+			<texture>ui_inGame2_checkbox</texture>
+		</check_ym_alt_aim>
+		<cap_ym_alt_aim x="200" y="590" width="300" height="40" stretch="1">
+			<text r="250" g="250" b="250" font="letterica18" align="l" vert_align="c">
+				st_ui_dbg_item_check_ym_alt_aim</text>
+		</cap_ym_alt_aim>
+
 	</dbg_wpn_hud_editor>
 
 	
