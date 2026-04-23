@@ -53,6 +53,14 @@ function patches()
     -- shader_scopes_editor Overrides
     ----------------
     
+    -- __init
+    -- override namespace copy of cache file
+    local _init = shader_scopes_editor.ShaderScopesEditor.__init
+    function shader_scopes_editor.ShaderScopesEditor:__init() super()
+        _init(self)
+        ym_weapon_hud_anywhere.override_debug_cache()
+    end
+    
     -- OnKeyboard
     
     info("Overriding shader_scopes_editor.ShaderScopesEditor OnKeyboard")
@@ -99,18 +107,12 @@ function patches()
         end
     end
 
-    -- override namespace copy of cache file
-    local _shader_save = shader_scopes_editor.ShaderScopesEditor.Save_Params
-    function shader_scopes_editor.ShaderScopesEditor:Save_Params()
-        -- ym_weapon_hud_anywhere.override_debug_cache()
-        _shader_save(self)
-    end
-
     -- OnButton
     local _shader_resume = shader_scopes_editor.ShaderScopesEditor.OnButton_Resume
     function shader_scopes_editor.ShaderScopesEditor:OnButton_Resume()
         _shader_resume(self)
         opened_from_wpn_hud = false
+        ym_weapon_hud_anywhere.restore_debug_cache_reference()
     end
 end
 

@@ -207,6 +207,8 @@ end
 -- Imports
 local start_weapon = ui_debug_launcher.start_wpn_hud_editor
 local prepare = ui_debug_launcher.prepare
+local _ini_cc = ui_debug_launcher.ini_cc
+local _cache_name = "cache_dbg.ltx"
 -- local clean_memo = ui_debug_wpn_hud.WpnHudEditor.CleanMemo
 local reload_wpn_hud = ui_debug_launcher.reload_wpn_hud
 local dte = demonized_time_events
@@ -501,9 +503,15 @@ function reset_dltx_section(wpn)
     return false
 end
 
----Override ui_debug_wpn_hud's namespace variable `ini_cc`
+---Override ui_debug_launcher's namespace variable `ini_cc`
 function override_debug_cache()
     ui_debug_launcher.ini_cc = ini_file_ex(cache_name, true)
+end
+
+---Reset ui_debug_launcher's ini_cc to its original value
+function restore_debug_cache_reference()
+    ui_debug_launcher.ini_cc = _ini_cc
+    -- ui_debug_launcher.ini_cc = ini_file_ex(_cache_name, true)
 end
 
 --#endregion--------------------------------
@@ -699,6 +707,17 @@ function ui_debug_wpn_hud.WpnHudEditor:CleanCacheDbg()
     end
 end
 
+
+-- Restore ui_debug_launcher.ini_cc to the `cache_dbg.ltx` file after closing menu
+-- dont really want other scripts writing to our cache file
+local _on_keyboard = ui_debug_wpn_hud.WpnHudEditor.OnKeyboard
+function ui_debug_wpn_hud.WpnHudEditor:OnKeyboard(dik, keyboard_action)
+    if (keyboard_action == ui_events.WINDOW_KEY_PRESSED) and (dik == DIK_keys.DIK_ESCAPE) then
+        restore_debug_cache_reference()
+    else
+        _on_keyboard(dik, keyboard_action)
+    end
+end
 
 ----------------
 -- New Reset button
