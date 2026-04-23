@@ -1,0 +1,307 @@
+local _shader_on_key_press = shader_scopes_editor.on_key_press
+local _shader_keybind = shader_scopes_editor.keybind
+
+local is_debug = (DEV_DEBUG or DEV_DEBUG_DEV) and true or false
+local is_shader_script = (shader_scopes_editor and shader_scopes_editor.on_key_press) and true or false
+
+--- state var that tells if shader editor was opened from wpn hud or by itself 
+local opened_from_wpn_hud = false
+
+function on_game_start()
+        RegisterScriptCallback("on_game_load", on_game_load)
+end
+
+function on_game_load()
+    if not is_shader_script then info("3D Shader Editor not loaded. Exiting") return end
+
+    if not is_debug  then 
+        info("Debug mode not active.")
+        shader_scopes_editor.debug_mode = true
+        UnregisterScriptCallback("on_key_press", shader_scopes_editor.on_key_press)
+    end
+
+    patches()
+end
+function patches()
+    info("Beginning Overrides")
+
+    ----------------
+    -- ui_debug_wpn_hud Overrides
+    ----------------
+    
+    info("Overriding ui_debug_wpn_hud.WpnHudEditor OnKeyboard")
+    -- open shader editor while hud editor is open
+    local _wpn_hud_on_keyboard = ui_debug_wpn_hud.WpnHudEditor.OnKeyboard
+    function ui_debug_wpn_hud.WpnHudEditor:OnKeyboard(dik, keyboard_action)
+        if keyboard_action == ui_events.WINDOW_KEY_PRESSED then
+            if (dik == _shader_keybind) then
+                -- close wpn hud editor first
+                self:Close()
+
+                -- open shader editor
+                opened_from_wpn_hud = true
+                _shader_on_key_press(_shader_keybind)
+            else
+                _wpn_hud_on_keyboard(self, dik, keyboard_action)
+            end
+        else
+            _wpn_hud_on_keyboard(self, dik, keyboard_action)
+        end
+    end
+
+    ----------------
+    -- shader_scopes_editor Overrides
+    ----------------
+    
+    -- OnKeyboard
+    
+    info("Overriding shader_scopes_editor.ShaderScopesEditor OnKeyboard")
+    local _shader_on_keyboard = shader_scopes_editor.ShaderScopesEditor.OnKeyboard
+    function shader_scopes_editor.ShaderScopesEditor:OnKeyboard(dik, keyboard_action)
+        if (keyboard_action == ui_events.WINDOW_KEY_PRESSED) then
+            if (dik == DIK_keys.DIK_ESCAPE) then
+                -- close shader editor
+                local wpn_section = shader_scopes_editor.wpn_section
+                local ms_count = shader_scopes_editor.ms_count
+
+                shader_scopes_editor.GUI:HideDialog()
+                shader_scopes_editor.GUI:Show(false)
+                Unregister_UI("ShaderScopesEditor")
+                if (ms_count > 1) then
+                    shader_scopes_editor.share_values(wpn_section, ms_count)
+                end
+
+                -- if opened from wpn hud, reopen wpn hud
+                if not opened_from_wpn_hud then return end
+
+                opened_from_wpn_hud = false
+
+                -- reopen wpn hud editor
+                local function launch_wpn_hud()
+                    -- ym_weapon_hud_anywhere.on_key_release(key_bindings.kCUSTOM17)
+
+                    -- necessary prepare function from ui_debug_launcher
+                    ui_debug_launcher.prepare()
+
+                    -- make this wpn hud save to our own cache file
+                    ym_weapon_hud_anywhere.override_debug_cache()
+
+                    -- launch hud editor
+                    ui_debug_launcher.start_wpn_hud_editor()
+                    return true
+                end
+                if demonized_time_events then
+                    demonized_time_events.CreateTimeEvent("open_wpn_hud", "open_wpn_hud", 0, launch_wpn_hud)
+                end
+            else
+                _shader_on_keyboard(dik, keyboard_action)
+            end
+        end
+    end
+
+    -- override namespace copy of cache file
+    local _shader_save = shader_scopes_editor.ShaderScopesEditor.Save_Params
+    function shader_scopes_editor.ShaderScopesEditor:Save_Params()
+        -- ym_weapon_hud_anywhere.override_debug_cache()
+        _shader_save(self)
+    end
+
+    -- OnButton
+    local _shader_resume = shader_scopes_editor.ShaderScopesEditor.OnButton_Resume
+    function shader_scopes_editor.ShaderScopesEditor:OnButton_Resume()
+        _shader_resume(self)
+        opened_from_wpn_hud = false
+    end
+end
+
+
+--#region DEBUG ----------------------------------------
+
+local modname = "Wpn Hud Editor Anywhere | 3D Shader Editor Patch"
+local DEBUG = true
+
+local function print_table(tbl, indent)
+    local g_type = type
+    if not indent then
+        indent = 0
+    end
+
+    utils_data.debug_write(string.rep(" ", indent) .. "{")
+
+    indent = indent + 2
+
+    if (g_type(tbl) == "userdata") then
+        utils_data.debug_write("<userdata>,\n")
+    else
+        for k, v in pairs(tbl) do
+            local toprint = string.rep(" ", indent)
+
+            if (g_type(k) == "number") then
+                toprint = toprint .. "[" .. k .. "] = "
+            elseif (g_type(k) == "string") then
+                toprint = toprint .. k .. " = "
+            end
+
+            if (g_type(v) == "number") then
+                utils_data.debug_write(toprint .. v .. ",")
+            elseif (g_type(v) == "string") then
+                utils_data.debug_write(toprint .. "\"" .. v .. "\",")
+            elseif (g_type(v) == "table") then
+                utils_data.debug_write(toprint)
+                print_table(v, indent + 2)
+            else
+                utils_data.debug_write(toprint .. "\"" .. tostring(v) .. "\",")
+            end
+        end
+    end
+
+    utils_data.debug_write(string.rep(" ", indent - 2) .. "}")
+end
+
+
+--- Flattens a table of any nested status into a single string
+---@param o table
+---@return string
+local function dump_table(o)
+    if type(o) == 'table' then
+        local s = '{ '
+        for k, v in pairs(o) do
+            if type(k) ~= 'number' then k = '"' .. k .. '"' end
+            s = s .. '[' .. k .. '] = ' .. dump_table(v) .. ','
+        end
+        return s .. '} '
+    else
+        return tostring(o)
+    end
+end
+
+
+local function log(log_type, output, ...)
+    if not output then
+        utils_data.debug_write("[" .. modname .. "] " .. log_type .. ": " .. "(nil)")
+        callstack()
+    else
+        -- pulled from _g.script
+        -- more var subbing
+        if (select('#', ...) >= 1) then
+            local i = 0
+            local p = { ... }
+            local function sr(a)
+                i = i + 1
+                if (type(p[i]) == 'userdata') then
+                    if (p[i].x and p[i].y) then
+                        return vec_to_str(p[i])
+                    end
+                    return 'userdata'
+                end
+                return tostring(p[i])
+            end
+            output = string.gsub(output, "%%s", sr)
+        end
+        printf("[" .. modname .. "] " .. log_type .. ": " .. output, ...)
+    end
+end
+
+function debug(output, ...)
+    if not DEBUG then return end
+    log("DEBUG", output, ...)
+end
+
+function info(output, ...)
+    log("INFO ", output, ...)
+end
+
+function warn(output, ...)
+    log("WARN ", output, ...)
+end
+
+function error(output, ...)
+    log("ERROR", output, ...)
+end
+
+function debug_tip(text, delay, ...)
+    debug(text, ...)
+
+    local text = "[" .. modname .. "] " .. tostring(text)
+
+    if not db.actor then
+        return
+    end
+
+    local ico = "ui_inGame2_Dengi_otdani"
+    local text_color = utils_xml.get_color("pda_white")
+
+    text = text_color .. text
+
+    if delay == nil then
+        delay = 6000
+    end
+
+    news_manager.send_tip(db.actor, text, nil, ico, delay)
+end
+
+local function debug_print_table(caption, tbl_options)
+    if not DEBUG then return end
+
+    if not tbl_options then
+        info("debug_print_table: tbl_options is nil")
+        return
+    end
+
+    local tbl = {}
+    if type(tbl_options[1]) ~= "table" then
+        tbl = tbl_options
+    else
+        tbl = tbl_options[1]
+    end
+
+    local indent = tbl_options[2] or 0
+
+    debug(caption)
+    print_table(tbl, indent)
+end
+
+local function info_print_table(caption, tbl_options)
+    if not DEBUG then return end
+    if not tbl_options then
+        info("info_print_table: tbl_options is nil")
+        return
+    end
+
+    local tbl = {}
+
+    if type(tbl_options[1]) ~= "table" then
+        tbl = tbl_options
+    else
+        tbl = tbl_options[1]
+    end
+
+    local indent = tbl_options[2] or 0
+
+    info(caption)
+    print_table(tbl, indent)
+end
+
+
+
+function open_specific_mcm(path)
+    if not DEBUG then return end
+
+    if ui_mcm then
+        exec_console_cmd("main_menu")
+
+        local function open_mcm_event(path)
+            ui_mcm.open_to(path)
+            return true
+        end
+
+
+        if demonized_time_events then
+            demonized_time_events.CreateTimeEvent("ym_open_mcm", "open_mcm", 1, open_mcm_event, path)
+        else
+            CreateTimeEvent("ym_open_mcm", "open_mcm", 1, open_mcm_event, path)
+        end
+    end
+end
+
+--#endregion------------------------------------------------------------------
