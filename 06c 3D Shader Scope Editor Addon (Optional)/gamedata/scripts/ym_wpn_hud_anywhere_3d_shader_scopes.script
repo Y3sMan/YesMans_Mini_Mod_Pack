@@ -1,11 +1,56 @@
+----------------
+-- Imports
+----------------
+
 local _shader_on_key_press = shader_scopes_editor.on_key_press
 local _shader_keybind = shader_scopes_editor.keybind
 
 local is_debug = (DEV_DEBUG or DEV_DEBUG_DEV) and true or false
 local is_shader_script = (shader_scopes_editor and shader_scopes_editor.on_key_press) and true or false
 
+local mcm = ui_mcm
+
+-- Core imports
+------------------------------------------------
+
+local reset_dltx_section = ym_wpn_hud_anywhere.reset_dltx_section
+local reset_cache_section = ym_wpn_hud_anywhere.reset_cache_section
+local core_override_debug_cache = ym_wpn_hud_anywhere.restore_debug_cache_reference
+local reset_cfg_section = ym_wpn_hud_anywhere.reset_cfg_section
+local reload_configs = ym_wpn_hud_anywhere.reload_configs
+
+------------------------------------------------
+
 --- state var that tells if shader editor was opened from wpn hud or by itself 
 local opened_from_wpn_hud = false
+
+--- dltx file to save hud edits to
+dltx_name = "mod_system_zzzzzzzzzzzzzz_ym_wpn_hud_edits_3d_shader_scope.ltx"
+--- redirect wpn hud editor to our new cache file
+cache_name = "ym_wpn_hud_cache_3d_shader_scope.ltx"
+
+
+ALT_MOD = 3 -- for use with ui_mcm.get_mod_key
+
+--------------------------------------------
+--#region Helpers
+--------------------------------------------
+
+
+function override_debug_cache()
+    ui_debug_launcher.ini_cc = ini_file_ex(cache_name, true)
+end
+
+---Restore ui_debug_launcher.ini_cc to ym_wpn_hud_anywhere cache file
+---
+---Used when exiting from 3d shader editor to wpn hud editor
+function restore_debug_cache_reference()
+    core_override_debug_cache()
+end
+
+
+
+--#endregion--------------------------------
 
 function on_game_start()
         RegisterScriptCallback("on_game_load", on_game_load)
@@ -56,9 +101,10 @@ function patches()
     local _init = shader_scopes_editor.ShaderScopesEditor.__init
     function shader_scopes_editor.ShaderScopesEditor:__init() super()
         _init(self)
-        ym_weapon_hud_anywhere.override_debug_cache()
+        override_debug_cache()
     end
     
+
     -- OnKeyboard
     
     info("Overriding shader_scopes_editor.ShaderScopesEditor OnKeyboard")
@@ -78,7 +124,7 @@ function patches()
 
             -- if opened by itself first, just close it out normally
             if not opened_from_wpn_hud then
-                ym_weapon_hud_anywhere.restore_debug_cache_reference()
+                core_override_debug_cache()
                 return
             end
 
@@ -93,8 +139,8 @@ function patches()
                 -- necessary prepare function from ui_debug_launcher
                 ui_debug_launcher.prepare()
 
-                -- make this wpn hud save to our own cache file
-                ym_weapon_hud_anywhere.override_debug_cache()
+                -- make this wpn hud save to our own 3d shader cache file
+                override_debug_cache()
 
                 -- launch hud editor
                 ui_debug_launcher.start_wpn_hud_editor()
@@ -112,10 +158,58 @@ function patches()
     function shader_scopes_editor.ShaderScopesEditor:OnButton_Resume()
         _shader_resume(self)
         opened_from_wpn_hud = false
-        ym_weapon_hud_anywhere.restore_debug_cache_reference()
+        core_override_debug_cache()
     end
-end
 
+
+    ----------------
+    -- New Buttons
+    ----------------
+   
+    -- InitControls
+    local _init_controls = shader_scopes_editor.ShaderScopesEditor.InitControls
+    function shader_scopes_editor.ShaderScopesEditor:InitControls()
+        _init_controls(self)
+
+        -- Override apply button text
+        ------------------------------------------------
+        self.btn_apply:TextControl():SetText(game.translate_string("st_ui_dbg_item_btn_ym_save"))
+
+        -- reset button
+        ------------------------------------------------
+
+        self.btn_ym_reset_3d = xml:Init3tButton("dbg_wpn_hud_editor:btn_ym_reset_3d", self.dialog)
+        self:Register(self.btn_ym_reset_3d, "btn_ym_reset_3d")
+    end
+
+    -- InitCallbacks
+    local _init_callbacks = shader_scopes_editor.ShaderScopesEditor.InitCallbacks
+    function shader_scopes_editor.ShaderScopesEditor:InitCallbacks()
+        _init_callbacks(self)
+        self:AddCallback("btn_ym_reset_3d", ui_events.BUTTON_CLICKED, self.OnButtonDLTXReset, self)
+    end
+
+    function shader_scopes_editor.ShaderScopesEditor:OnButtonDLTXReset()
+        if mcm and mcm.get_mod_key(ALT_MOD) then
+            local active_item = db.actor:active_item()
+            local is_wpn = IsWeapon(active_item)
+            local wpn = is_wpn and active_item
+            debug("Resetting current 3D Shader Settinns for weapon %s", wpn)
+
+            reset_cfg_section(wpn, cache_name)
+            reset_dltx_section(wpn, dltx_name)
+
+            self:OnButton_Reset_All()
+
+            reload_configs()
+        else
+            display_msg("Hold ALT and try again to delete dltx changes")
+            return
+        end
+
+    end
+
+end
 
 --#region DEBUG ----------------------------------------
 

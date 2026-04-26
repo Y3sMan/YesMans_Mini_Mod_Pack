@@ -1,0 +1,175 @@
+
+<!-- Shader 3D Scopes Editor - UI xml -->
+
+<w>
+	<SSE x="5" y="5" width="300" height="583" stretch="1">
+		<background x="0" y="0" width="300" height="583" stretch="1">
+			<texture>ui\shader_scopes_editor\background.dds</texture>
+		
+			<line_1_1 x="3" y="2" width="292" height="10" stretch="1">
+				<texture>ui_inGame2_opt_slider_bar_back</texture>
+			</line_1_1>
+			<line_1_2 x="3" y="6" width="292" height="10" stretch="1">
+				<texture>ui_inGame2_opt_slider_bar_back</texture>
+			</line_1_2>
+		
+			<title x="0" y="15" width="300" height="30" stretch="1">
+				<text font="graffiti22" r="250" g="255" b="255" a="255" align="c" complex_mode="1"/>
+			</title>
+			
+			<line_2_1 x="3" y="34" width="292" height="10" stretch="1">
+				<texture>ui_inGame2_opt_slider_bar_back</texture>
+			</line_2_1>
+			<line_2_2 x="3" y="38" width="292" height="10" stretch="1">
+				<texture>ui_inGame2_opt_slider_bar_back</texture>
+			</line_2_2>
+		</background>
+		
+		<!-- parameter list -->
+		<desc x="5" y="64" width="290" height="70" stretch="1">
+				<text font="arial_14" r="250" g="255" b="255" a="255" align="l" complex_mode="1"/>
+		</desc>
+		
+		<!-- tab selection -->
+		<tab_select x="2" y="124" width="140" height="28" stretch="1">
+			<background_1 x="2" y="0" width="70" height="28" stretch="1">
+				<texture>ui\shader_scopes_editor\background.dds</texture>
+			</background_1>
+			
+			<tab_1 x="2" y="3" width="68" height="24" stretch="1">
+				<texture>ui_button_ordinary</texture>
+				<text font="letterica16" r="250" g="255" b="255" a="255" align="c" vert_align="c"/>
+			</tab_1>
+			
+			<background_2 x="72" y="0" width="70" height="28" stretch="1">
+				<texture>ui\shader_scopes_editor\background.dds</texture>
+			</background_2>
+			
+			<tab_2 x="72" y="3" width="68" height="24" stretch="1">
+				<texture>ui_button_ordinary</texture>
+				<text font="letterica16" r="250" g="255" b="255" a="255" align="c" vert_align="c"/>
+			</tab_2>
+		</tab_select>
+		
+		<main_wnd x="4" y="152" width="292" height="349" stretch="1">
+			<texture>ui\shader_scopes_editor\background.dds</texture>
+		</main_wnd>
+
+		<line_3 x="3" y="150" width="292" height="10" stretch="1">
+				<texture>ui_inGame2_opt_slider_bar_back</texture>
+		</line_3>
+
+		<!-- MS current display -->
+		<ms_current x="210.5" y="127.5" width="85" height="24" stretch="1">
+				<texture>ui\shader_scopes_editor\background.dds</texture>
+				
+				<ms_current_text x="4" y="3.5" width="60" height="20" stretch="1">
+					<text font="letterica16" r="250" g="255" b="255" a="255" align="l" vert_align="c"/>
+				</ms_current_text>
+				
+				<ms_current_val x="75" y="6" width="30" height="20" stretch="1">
+					<text font="letterica16" r="200" g="200" b="250" align="l" complex_mode="1"/>
+				</ms_current_val>
+		</ms_current>
+		
+		
+		<!-- scroll view for S3DS params -->
+		<scroll_view x="4" y="158" width="292" height="340" right_ident="0" left_ident="0" top_indent="0" bottom_indent="0" vert_interval="0" always_show_scroll="0"/>
+		
+		<!-- tabs inside scroll view -->
+		<window x="0" y="0" width="280" height="90" stretch="1">
+			<title x="5" y="3" width="100" height="20" stretch="1">
+				<text font="letterica16" r="250" g="255" b="255" a="255" align="l"/>
+			</title>
+			
+			<texture_1 x="120" y="5" width="40" height ="40" stretch="1">
+				<texture>ui\shader_scopes_editor\reticle_size_1.dds</texture>
+			</texture_1> 
+			
+			<texture_2 x="200" y="5" width="40" height ="40" stretch="1">
+				<texture>ui\shader_scopes_editor\reticle_size_2.dds</texture>
+			</texture_2>
+			
+			<!-- reset buttons -->
+			<btn_reset x="228" y="0" width="50" height="24" stretch="1">
+				<texture>ui_button_ordinary</texture>
+				<text font="letterica16" r="250" g="255" b="255" a="255" align="c" vert_align="c"/>
+			</btn_reset>
+			
+			<!-- trackbars -->
+			<trackbar x="5" y="55" width="250" height="16" stretch="1" step = "1.0"/>
+			<track_value x="260" y="55" width="25" height="20" stretch="1">
+				<text font="letterica16" r="200" g="200" b="250" align="l" complex_mode="1"/>
+			</track_value>
+			
+			<!-- checkboxes -->
+			<checkbox x="5" y="50" width="35" height="30" stretch="1">
+				<texture>ui_inGame2_checkbox</texture> 
+			</checkbox>
+			
+			<!-- multiple checkboxes -->
+			<radio_check x="0" y="30" width="35" height="30" stretch="1">
+				<texture>ui_radio</texture> 
+			</radio_check>
+			<radio_text x="-18" y="60" width="70" height="20" stretch="1">
+				<text font="letterica16" r="250" g="255" b="255" a="255" align="c" complex_mode="1"/>
+			</radio_text>
+			
+			<devider x="0" y="82" width="280" height="10" stretch="1">
+				<texture>ui_inGame2_opt_slider_bar_back</texture>
+			</devider>
+		</window>
+		
+		
+		<!-- container for Mark Switch params -->
+		<ms_wnd x="4" y="158" width="292" height="340" stretch="1">
+			<trackbar x="25" y="55" width="230" height="16" stretch="1" step = "1.0"/>
+		</ms_wnd>
+		
+		
+		<!-- buttons -->
+		<btn_reset_all x="2" y="510" width="90" height="30" stretch="1">
+			<texture>ui_button_ordinary</texture>
+			<text font="graffiti19" r="250" g="255" b="255" a="255" align="c" vert_align="c" complex_mode="1"/>
+		</btn_reset_all>
+		
+		<btn_resume x="2" y="546.5" width="90" height="30" stretch="1">
+			<texture>ui_button_ordinary</texture>
+			<text font="graffiti19" r="250" g="255" b="255" a="255" align="c" vert_align="c" complex_mode="1"/>
+		</btn_resume>
+		
+		<btn_copy x="104" y="510" width="90" height="30" stretch="1">
+			<texture>ui_button_ordinary</texture>
+			<text font="graffiti19" r="250" g="255" b="255" a="255" align="c" vert_align="c" complex_mode="1"/>
+		</btn_copy>
+		
+		<btn_paste x="104" y="546.5" width="90" height="30" stretch="1">
+			<texture>ui_button_ordinary</texture>
+			<text font="graffiti19" r="250" g="255" b="255" a="255" align="c" vert_align="c" complex_mode="1"/>
+		</btn_paste>
+		
+		<btn_apply x="206" y="546.5" width="90" height="30" stretch="1">
+			<texture>ui_button_ordinary</texture>
+			<text font="graffiti19" r="250" g="255" b="255" a="255" align="c" vert_align="c" complex_mode="1"/>
+		</btn_apply>
+
+		<!-- YesMan Additions -->
+		<!-- 3D Shader Editor buttons -->
+		<!-- dltx reset wpn button -->
+		<btn_ym_reset_3d x="300" y="710" width="150" height="30" stretch="1">
+			<text align="c" font="letterica16">st_ui_dbg_item_btn_ym_reset</text>
+			<texture>ui_button_ordinary</texture>
+		</btn_ym_reset_3d>
+
+	</SSE>
+	
+	
+	<!-- help window with instructions and info -->
+	<help_wnd x="307" y="5" width="713" height="583" stretch="1">
+		<texture>ui\shader_scopes_editor\help_background.dds</texture>
+		
+		<text_wnd x="10" y="10" width="693" height="563" stretch="1">
+			<text font="letterica18" r="250" g="255" b="255" a="255" align="l" complex_mode="1"/>
+		</text_wnd>
+	</help_wnd>
+</w>
