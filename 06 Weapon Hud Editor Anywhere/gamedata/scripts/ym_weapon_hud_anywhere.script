@@ -319,10 +319,11 @@ function get_cache_file(io_args)
     return ltx or nil
 end
 
----Return `mod_system_ym_wpn_hud_edits` file
+---Return `mod_system_zzzzzzzzzzzzzz_ym_wpn_hud_edits` file
+---@param dltx_name string
 ---@param io_args string: arguments to passthrough to `io.open`
 ---@return file*?
-function get_dltx_file(io_args)
+function get_dltx_file(dltx_name, io_args)
     io_args = io_args or "w"
     local ltx = get_config_file(dltx_name, io_args)
     return ltx or nil
@@ -342,7 +343,7 @@ end
 ---
 ---**Be very careful with these**
 function reset_dltx_all()
-    local ltx = get_dltx_file('w')
+    local ltx = get_dltx_file(dltx_name, 'w')
     if ltx then
         ltx:write("")
         ltx:close()
@@ -397,11 +398,12 @@ function fixup_dltx(str_in)
 end
 
 
----Reset hud all changes for wpn
----@param wpn string: weapon hud section
-function reset_cache_section(wpn)
+---Clear section keys and values for `wpn` section in `filename` config file
+---@param wpn string: weapon section name
+---@param filename string: name of config file 
+function reset_cfg_section(wpn, filename)
     local path = get_game_config_path()
-    local ltx = path and utils_data.cfg_file(path .. "//" .. cache_name, true)
+    local ltx = path and utils_data.cfg_file(path .. "//" .. filename, true)
     local wpn_hud = wpn .. "_hud"
     local keys = ltx and ltx:GetKeys(wpn_hud) or {}
     
@@ -418,9 +420,18 @@ function reset_cache_section(wpn)
     ltx:Save()
 end
 
+---Reset hud all changes for wpn in our cache file
+---@param wpn string: weapon hud section
+function reset_cache_section(wpn)
+    reset_cfg_section(wpn, cache_name)
+end
+
+
 ---Reset dltx changes for current wpn
+---@param wpn string
+---@param dltx_name string
 ---@return boolean success:  whether current wpn section dltx was reset successfully
-function reset_dltx_section(wpn)
+function reset_dltx_section(wpn, dltx_name)
 
 	-- local wpn = db.actor:active_item()
     -- local wpn_sec = wpn
@@ -435,7 +446,7 @@ function reset_dltx_section(wpn)
     
 
     -- Read data from our dltx
-    local ltx = get_dltx_file('rb') or nil
+    local ltx = get_dltx_file(dltx_name, 'rb') or nil
 
     if ltx then
         local test_data = ltx:read("*all")
@@ -491,7 +502,7 @@ function reset_dltx_section(wpn)
         new_dltx_str = fixup_dltx(new_dltx_str)
         debug("new test data = %s", new_dltx_str)
 
-        local ltx = get_dltx_file('w')
+        local ltx = get_dltx_file(dltx_name, 'w')
         if ltx then
             ltx:write(new_dltx_str)
             ltx:close()
@@ -673,7 +684,7 @@ function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
                 debug("new data = %s", new_data)
                 
                 -- write changes to dltx
-                local ltx = get_dltx_file('w')
+                local ltx = get_dltx_file(dltx_name, 'w')
                 
                 if ltx then
                     ltx:write(new_data)
