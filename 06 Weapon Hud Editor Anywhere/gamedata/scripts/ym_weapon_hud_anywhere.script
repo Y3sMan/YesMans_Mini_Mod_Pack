@@ -700,6 +700,28 @@ function ui_debug_wpn_hud.WpnHudEditor:CleanCacheDbg()
 end
 
 
+-- Restore ui_debug_launcher.ini_cc to the `cache_dbg.ltx` file after closing menu
+-- dont really want other scripts writing to our cache file
+-- local _on_keyboard = ui_debug_wpn_hud.WpnHudEditor.OnKeyboard
+-- function ui_debug_wpn_hud.WpnHudEditor:OnKeyboard(dik, keyboard_action)
+-- 	local res = CUIScriptWnd.OnKeyboard(self,dik,keyboard_action)
+--     if res then return res end
+
+--     if (keyboard_action == ui_events.WINDOW_KEY_PRESSED) and (dik == DIK_keys.DIK_ESCAPE) then
+--         restore_debug_cache_reference()
+--     else
+--         _on_keyboard(self,dik, keyboard_action)
+--     end
+
+--     return res
+-- end
+
+local _close = ui_debug_wpn_hud.WpnHudEditor.Close
+function ui_debug_wpn_hud.WpnHudEditor:Close()
+    restore_debug_cache_reference()
+    _close(self)
+end
+
 ----------------
 -- New Reset button
 -- resets dltx settings for current weapon
