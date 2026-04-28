@@ -207,6 +207,8 @@ end
 -- Imports
 local start_weapon = ui_debug_launcher.start_wpn_hud_editor
 local prepare = ui_debug_launcher.prepare
+local _ini_cc = ui_debug_launcher.ini_cc
+local _cache_name = "cache_dbg.ltx"
 -- local clean_memo = ui_debug_wpn_hud.WpnHudEditor.CleanMemo
 local reload_wpn_hud = ui_debug_launcher.reload_wpn_hud
 local dte = demonized_time_events
@@ -216,7 +218,7 @@ local string_find = string.find
 
 -- definitions
 
---- keybinding used to open wpn hud editor in non-debug mode
+--- keybinding used to open wpn hud editor in non-debug mode. Defaults to `kCUSTOM17`
 KEYBIND = key_bindings.kCUSTOM17
 --- modifier to use to press reset and save buttons
 ALT_MOD = 3 -- for use with ui_mcm.get_mod_key
@@ -501,9 +503,15 @@ function reset_dltx_section(wpn)
     return false
 end
 
----Override ui_debug_wpn_hud's namespace variable `ini_cc`
+---Override ui_debug_launcher's namespace variable `ini_cc`
 function override_debug_cache()
     ui_debug_launcher.ini_cc = ini_file_ex(cache_name, true)
+end
+
+---Reset ui_debug_launcher's ini_cc to its original value
+function restore_debug_cache_reference()
+    ui_debug_launcher.ini_cc = _ini_cc
+    -- ui_debug_launcher.ini_cc = ini_file_ex(_cache_name, true)
 end
 
 --#endregion--------------------------------
