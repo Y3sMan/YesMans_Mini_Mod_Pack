@@ -306,25 +306,23 @@ end
 function get_config_file(filepath, io_args)
     local cfg_path = get_game_config_path()
 	local path = cfg_path and cfg_path  .. filepath
+    local io_args = io_args or "w"
     local ltx = path and io.open(path, io_args) or nil
     return ltx or nil
 end
 
 ---Return `ym_wpn_hud_cache.ltx` file
----@param io_args string: arguments to passthrough to `io.open`
+---@param io_args string arguments to passthrough to `io.open`
 ---@return file*?
 function get_cache_file(io_args)
-    io_args = io_args or "w"
     local ltx = get_config_file(cache_name, io_args)
     return ltx or nil
 end
 
 ---Return `mod_system_zzzzzzzzzzzzzz_ym_wpn_hud_edits` file
 ---@param dltx_name string
----@param io_args string: arguments to passthrough to `io.open`
 ---@return file*?
 function get_dltx_file(dltx_name, io_args)
-    io_args = io_args or "w"
     local ltx = get_config_file(dltx_name, io_args)
     return ltx or nil
 end
