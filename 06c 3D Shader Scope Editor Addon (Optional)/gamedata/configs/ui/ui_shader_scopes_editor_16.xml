@@ -2,7 +2,8 @@
 <!-- Shader 3D Scopes Editor - UI xml -->
 
 <w>
-	<SSE x="5" y="5" width="300" height="583" stretch="1">
+	<SSE x="5" y="5" width="450" height="650" stretch="1">
+	<!-- <SSE x="5" y="5" width="300" height="583" stretch="1"> -->
 		<background x="0" y="0" width="300" height="583" stretch="1">
 			<texture>ui\shader_scopes_editor\background.dds</texture>
 		
@@ -156,7 +157,7 @@
 		<!-- YesMan Additions -->
 		<!-- 3D Shader Editor buttons -->
 		<!-- dltx reset wpn button -->
-		<btn_ym_reset_3d x="300" y="710" width="150" height="30" stretch="1">
+		<btn_ym_reset_3d x="206" y="510" width="90" height="30" stretch="1">
 			<text align="c" font="letterica16">st_ui_dbg_item_btn_ym_reset</text>
 			<texture>ui_button_ordinary</texture>
 		</btn_ym_reset_3d>

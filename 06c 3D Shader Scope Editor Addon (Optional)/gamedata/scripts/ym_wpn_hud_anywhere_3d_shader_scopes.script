@@ -286,6 +286,8 @@ function patches()
     ----------------
     -- New Buttons
     ----------------
+    ---
+    ---Reset DLTX Button
    
     -- InitControls
     local _init_controls = shader_scopes_editor.ShaderScopesEditor.InitControls
@@ -299,36 +301,40 @@ function patches()
         -- reset button
         ------------------------------------------------
 
-        self.btn_ym_reset_3d = xml:Init3tButton("dbg_wpn_hud_editor:btn_ym_reset_3d", self.dialog)
+        self.btn_ym_reset_3d = xml:Init3tButton("SSE:btn_ym_reset_3d", self.dialog)
         self:Register(self.btn_ym_reset_3d, "btn_ym_reset_3d")
     end
 
     -- InitCallbacks
-    local _init_callbacks = shader_scopes_editor.ShaderScopesEditor.InitCallbacks
-    function shader_scopes_editor.ShaderScopesEditor:InitCallbacks()
+    local _init_callbacks = shader_scopes_editor.ShaderScopesEditor.InitCallBacks
+    function shader_scopes_editor.ShaderScopesEditor:InitCallBacks()
         _init_callbacks(self)
         self:AddCallback("btn_ym_reset_3d", ui_events.BUTTON_CLICKED, self.OnButtonDLTXReset, self)
     end
 
     function shader_scopes_editor.ShaderScopesEditor:OnButtonDLTXReset()
+        debug("reset button")
         if mcm and mcm.get_mod_key(ALT_MOD) then
-            local active_item = db.actor:active_item()
-            local is_wpn = IsWeapon(active_item)
-            local wpn = is_wpn and active_item
-            debug("Resetting current 3D Shader Settinns for weapon %s", wpn)
+            local wpn_sec = get_current_wpn()
+            if (wpn_sec == "") then self:Send_Msg("There is not a held weapon to reset changes for") return end
 
-            reset_cfg_section(wpn, cache_name)
-            reset_dltx_section(wpn, dltx_name)
+            debug("Resetting current 3D Shader Settings for weapon %s", wpn_sec)
+
+            reset_cache_section(wpn_sec)
+            reset_dltx_section(wpn_sec)
+            -- reload_configs()
 
             self:OnButton_Reset_All()
 
             reload_configs()
+            override_debug_cache()
         else
             display_msg("Hold ALT and try again to delete dltx changes")
             return
         end
 
     end
+
 
 end
 
