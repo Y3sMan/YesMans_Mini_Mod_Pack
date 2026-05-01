@@ -645,13 +645,18 @@ end
 -- save to dltx on original "Apply" button
 local _on_btn_save = ui_debug_wpn_hud.WpnHudEditor.OnButtonSave
 function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
-    _on_btn_save(self)
 
     -- only do dltx save if holding ALT
     if not mcm or not mcm.MOD_ALT then
         display_msg("There is no going back! If you want to save to DLTX, hold ALT and save again!")
         return
     end
+
+    -- redirect to our cache file
+    override_debug_cache()
+
+    _on_btn_save(self)
+
 
     local section = self.section
     debug("Saving current Weapon DLTX Changes for weapon %s", section)
