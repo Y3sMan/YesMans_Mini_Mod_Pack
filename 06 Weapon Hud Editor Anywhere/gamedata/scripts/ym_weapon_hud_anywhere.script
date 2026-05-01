@@ -256,8 +256,8 @@ end
 --------------------------------------------
 
 ---Reset dltx changes for section wpn
----@param wpn string string: string section of wpn 
----@return boolean success:  whether wpn section dltx was reset successfully
+---@param wpn string string string section of wpn 
+---@return boolean success  whether wpn section dltx was reset successfully
 function reset_wpn_dltx(wpn)
     return false
 end
@@ -273,8 +273,8 @@ function wpn_has_parent(wep_sec)
 end
 
 ---Takes wpn_sec and returns the non_hud section
----@param wpn_sec string: weapon section ending with `_hud`
----@return string: parent weapon section string without `_hud`
+---@param wpn_sec string weapon section ending with `_hud`
+---@return string parent weapon section string without `_hud`
 function get_sec_parent(wpn_sec)
     local p = string.gsub(wpn_sec, "_hud", "") or ""
     return p
@@ -300,8 +300,14 @@ function get_game_config_path()
 end
 
 ---Get file object of ltx in gamedata/configs
----@param filepath string path: A file inside `gamedata/configs`
----@param io_args string: arguments to pass to `io.open`: 'w|a|r|(b)'
+---@param filepath string A file inside `gamedata/configs`
+---@param io_args? string arguments to pass to `io.open`. Defaults to `'w'`
+---| "w" - write mode (overwrites existing)
+---| "a" - append mode (appends to existing)
+---| "b" - binary mode
+---| "r+" - update mode (existing data preserved)
+---| "w+" - update mode (existing data erased)
+---| "a+" - append update mode (existing data preserved, append at end of file only)
 ---@return file*?
 function get_config_file(filepath, io_args)
     local cfg_path = get_game_config_path()
@@ -310,6 +316,7 @@ function get_config_file(filepath, io_args)
     local ltx = path and io.open(path, io_args) or nil
     return ltx or nil
 end
+
 
 ---Return `ym_wpn_hud_cache.ltx` file
 ---@param io_args string arguments to passthrough to `io.open`
@@ -320,9 +327,9 @@ function get_cache_file(io_args)
 end
 
 ---Return `mod_system_zzzzzzzzzzzzzz_ym_wpn_hud_edits` file
----@param dltx_name string
+---@param io_args string arguments to passthrough to `io.open`
 ---@return file*?
-function get_dltx_file(dltx_name, io_args)
+function get_dltx_file(io_args)
     local ltx = get_config_file(dltx_name, io_args)
     return ltx or nil
 end
@@ -341,7 +348,7 @@ end
 ---
 ---**Be very careful with these**
 function reset_dltx_all()
-    local ltx = get_dltx_file(dltx_name, 'w')
+    local ltx = get_dltx_file('w')
     if ltx then
         ltx:write("")
         ltx:close()
@@ -361,7 +368,7 @@ end
 
 
 ---Take input str_in and remove excess newlines. "Excess" means more than 2 empty newlines
----@param str_in string string: input string 
+---@param str_in string string input string 
 function clean_excess_newlines(str_in)
     local str_out = string.gsub(str_in, "\n", "")
     debug_print_table("clean_excess_newlines", {
@@ -458,7 +465,7 @@ function reset_cfg_section(wpn, filename)
 end
 
 ---Reset hud all changes for wpn in our cache file
----@param wpn string: weapon hud section
+---@param wpn string weapon hud section
 function reset_cache_section(wpn)
     reset_cfg_section(wpn, cache_name)
 end
@@ -719,7 +726,7 @@ function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
                 debug("new data = %s", new_data)
                 
                 -- write changes to dltx
-                local ltx = get_dltx_file(dltx_name, 'w')
+                local ltx = get_dltx_file('w')
                 
                 if ltx then
                     ltx:write(new_data)
@@ -783,8 +790,8 @@ end
 
 
 function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXReset()
-    debug("Resetting current Weapon DLTX Changes")
     if mcm and mcm.get_mod_key(ALT_MOD) then
+        debug("Resetting current Weapon DLTX Changes")
         reset_cache_section(self.section)
         reset_dltx_section(self.section)
         reload_configs()
