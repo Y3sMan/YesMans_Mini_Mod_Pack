@@ -399,25 +399,64 @@ end
 
 
 ---Clear section keys and values for `wpn` section in `filename` config file
----@param wpn string: weapon section name
----@param filename string: name of config file 
+---@param wpn string weapon section name
+---@param filename string name of config file 
+-- function reset_cfg_section(wpn, filename)
+--     local path = get_game_config_path()
+--     local ltx = path and utils_data.cfg_file(path .. "//" .. filename, true)
+
+--     if not ltx then error("LTX not found: %s", filename) return end
+
+--     local function clear_values(sec)
+--         local keys = ltx and ltx:GetKeys(sec) or {}
+
+
+--         -- clear _hud section values in cache
+--         for k, v in pairs(keys) do
+--             debug("k,v = %s, %s", k, v)
+--             -- ltx:SetValue(sec, k, nil)
+--             ltx:ClearValue(sec, k)
+--         end
+
+--     end
+
+
+--     -- clear values for [wpn]
+--     clear_values(wpn)
+
+--     -- clear values for [wpn_sec]
+--     local wpn_hud = wpn .. "_hud"
+--     clear_values(wpn_hud)
+
+--     -- special check if use_alt_aim_hud is set
+--     if ltx:KeyExist(wpn,"use_alt_aim_hud") then
+--         ltx:ClearValue(wpn, "use_alt_aim_hud")
+--     end
+
+--     -- save changes
+--     ltx:Save()
+-- end
+
 function reset_cfg_section(wpn, filename)
-    local path = get_game_config_path()
-    local ltx = path and utils_data.cfg_file(path .. "//" .. filename, true)
-    local wpn_hud = wpn .. "_hud"
-    local keys = ltx and ltx:GetKeys(wpn_hud) or {}
-    
-    -- clear _hud section values in cache
-    for k,v in pairs(keys) do
-        debug("k,v = %s, %s", k, v)
-        -- ltx:SetValue(wpn_hud, k, nil)
-        ltx:ClearValue(wpn_hud, k)
+    local ltx = ini_file_ex(filename, true)
+    if not ltx then return end
+
+    local wpn_hud = ini_sys:r_string_ex(wpn, "hud")
+
+    local function clear(sec)
+        local tbl = ltx:collect_section(sec)
+        debug("[%s]", sec)
+        print_table(tbl)
+        for k, v in pairs(tbl) do
+            debug("k,v %s = %s", k, v)
+            ltx:remove_line(sec, k)
+        end
     end
 
-    -- clear use_alt_aim_hud parameter
-    ltx:ClearValue(wpn, "use_alt_aim_hud")
+    clear(wpn)
+    clear(wpn_hud)
 
-    ltx:Save()
+    ltx:save()
 end
 
 ---Reset hud all changes for wpn in our cache file
