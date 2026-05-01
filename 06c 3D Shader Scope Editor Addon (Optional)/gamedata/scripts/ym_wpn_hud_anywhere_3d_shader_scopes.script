@@ -1,18 +1,121 @@
+
+assert(ym_weapon_hud_anywhere, "\n\n"..
+    "! Weapon Hud Anywhere 3D Shader Patch requires ym_weapon_hud_anywhere, which does not exist!\n\n"
+)
+
+assert(shader_scopes_editor, "\n\n"..
+    "! Weapon Hud Anywhere 3D Shader Patch requires shader_scopes_editor, which does not exist!\n\n"
+)
+
+
+
+----------------
+-- Imports
+----------------
+
 local _shader_on_key_press = shader_scopes_editor.on_key_press
-local _shader_keybind = shader_scopes_editor.keybind
+local _shader_keybind = shader_scopes_editor.keybind -- DIK_M
+local shader_get_params = shader_scopes_editor.get_params
+local shader_cache_values = shader_scopes_editor.cache_values
 
 local is_debug = (DEV_DEBUG or DEV_DEBUG_DEV) and true or false
 local is_shader_script = (shader_scopes_editor and shader_scopes_editor.on_key_press) and true or false
 
+local mcm = ui_mcm
+
+-- Core imports
+------------------------------------------------
+
+-- local reset_dltx_section = ym_weapon_hud_anywhere.reset_dltx_section
+-- local reset_cache_section = ym_weapon_hud_anywhere.reset_cache_section
+-- local reset_a_cache_section
+local core_override_debug_cache = ym_weapon_hud_anywhere.restore_debug_cache_reference
+local reset_cfg_section = ym_weapon_hud_anywhere.reset_cfg_section
+local reload_configs = ym_weapon_hud_anywhere.reload_configs
+local get_config_file = ym_weapon_hud_anywhere.get_config_file
+
+local display_msg = ym_weapon_hud_anywhere.display_msg
+
+------------------------------------------------
+
 --- state var that tells if shader editor was opened from wpn hud or by itself 
 local opened_from_wpn_hud = false
 
+--- dltx file to save hud edits to
+dltx_name = "mod_system_zzzzzzzzzzzzzz_ym_wpn_hud_edits_3d_shader_scope.ltx"
+--- redirect wpn hud editor to our new cache file
+cache_name = "ym_wpn_hud_cache_3d_shader_scope.ltx"
+
+
+ALT_MOD = 3 -- for use with ui_mcm.get_mod_key
+
+--------------------------------------------
+--#region Utilities
+--------------------------------------------
+
+---Get section name of currently held weapon
+---@return string weapon_section weapon section name
+function get_current_wpn()
+    if not db.actor then return "" end
+    local active_item = db.actor:active_item()
+    local is_wpn = IsWeapon(active_item)
+    local wpn = is_wpn and active_item
+    local wpn_sec = wpn and wpn:section()
+
+    return wpn_sec or ""
+end
+
+
+function override_debug_cache()
+    debug("overriding ui_debug_launcher.ini_cc with our own cache %s", cache_name)
+    ui_debug_launcher.ini_cc = ini_file_ex(cache_name, true)
+end
+
+---Restore ui_debug_launcher.ini_cc to ym_weapon_hud_anywhere cache file
+---
+---Used when exiting from 3d shader editor to wpn hud editor
+function restore_debug_cache_reference()
+    core_override_debug_cache()
+end
+
+function get_cache_file(io_args)
+    io_args = io_args or 'w'
+    local ltx = get_config_file(cache_name, io_args)
+    return ltx or nil
+end
+
+function get_dltx_file(io_args)
+    local ltx = get_config_file(dltx_name, io_args)
+    return ltx or nil
+end
+
+---Reset dltx changes for current `wpn` in dltx file `mod_system_zzzzzzzzzzzzzz_ym_wpn_hud_edits_3d_shader_scope.ltx`
+---@param wpn string section name of weapon
+---@return boolean success  whether current wpn section dltx was reset successfully
+function reset_dltx_section(wpn)
+    return ym_weapon_hud_anywhere.reset_a_dltx_section(wpn, dltx_name)
+end
+
+function reset_cache_section(wpn)
+    ym_weapon_hud_anywhere.reset_cfg_section(wpn, cache_name)
+end
+
+
+--#endregion--------------------------------
+
 function on_game_start()
-        RegisterScriptCallback("on_game_load", on_game_load)
+    RegisterScriptCallback("on_game_load", on_game_load)
+
+    -- var imports
+	-- reset_dltx_section = ym_weapon_hud_anywhere.reset_dltx_section
+	reset_a_cache_section = ym_weapon_hud_anywhere.reset_a_cache_section
+	core_override_debug_cache = ym_weapon_hud_anywhere.restore_debug_cache_reference
+	-- reset_cfg_section = ym_weapon_hud_anywhere.reset_cfg_section
+	reload_configs = ym_weapon_hud_anywhere.reload_configs
 end
 
 function on_game_load()
-    if not is_shader_script then info("3D Shader Editor not loaded. Exiting") return end
+    -- if not is_shader_script then info("3D Shader Editor not loaded. Exiting") return end
 
     if not is_debug  then 
         info("Debug mode not active.")
@@ -40,6 +143,7 @@ function patches()
             -- open shader editor
             opened_from_wpn_hud = true
             
+            override_debug_cache()
             -- carry on as normal
             _shader_on_key_press(_shader_keybind)
         else
@@ -56,15 +160,18 @@ function patches()
     local _init = shader_scopes_editor.ShaderScopesEditor.__init
     function shader_scopes_editor.ShaderScopesEditor:__init() super()
         _init(self)
-        ym_weapon_hud_anywhere.override_debug_cache()
+        override_debug_cache()
     end
     
+
     -- OnKeyboard
     
     info("Overriding shader_scopes_editor.ShaderScopesEditor OnKeyboard")
     local _shader_on_keyboard = shader_scopes_editor.ShaderScopesEditor.OnKeyboard
     function shader_scopes_editor.ShaderScopesEditor:OnKeyboard(dik, keyboard_action)
-        if (keyboard_action == ui_events.WINDOW_KEY_PRESSED) and (dik == DIK_keys.DIK_ESCAPE) then
+        if (keyboard_action ~= ui_events.WINDOW_KEY_PRESSED) then return end
+
+        if (dik == DIK_keys.DIK_ESCAPE) then
             -- close shader editor
             local wpn_section = shader_scopes_editor.wpn_section
             local ms_count = shader_scopes_editor.ms_count
@@ -78,7 +185,7 @@ function patches()
 
             -- if opened by itself first, just close it out normally
             if not opened_from_wpn_hud then
-                ym_weapon_hud_anywhere.restore_debug_cache_reference()
+                core_override_debug_cache()
                 return
             end
 
@@ -93,8 +200,8 @@ function patches()
                 -- necessary prepare function from ui_debug_launcher
                 ui_debug_launcher.prepare()
 
-                -- make this wpn hud save to our own cache file
-                ym_weapon_hud_anywhere.override_debug_cache()
+                -- make this wpn hud save to our own 3d shader cache file
+                -- override_debug_cache()
 
                 -- launch hud editor
                 ui_debug_launcher.start_wpn_hud_editor()
@@ -103,19 +210,147 @@ function patches()
             if demonized_time_events then
                 demonized_time_events.CreateTimeEvent("open_wpn_hud", "open_wpn_hud", 0, launch_wpn_hud)
             end
+        else
             _shader_on_keyboard(dik, keyboard_action)
         end
     end
 
-    -- OnButton
+    -- Resume button 
     local _shader_resume = shader_scopes_editor.ShaderScopesEditor.OnButton_Resume
     function shader_scopes_editor.ShaderScopesEditor:OnButton_Resume()
         _shader_resume(self)
         opened_from_wpn_hud = false
-        ym_weapon_hud_anywhere.restore_debug_cache_reference()
+        core_override_debug_cache()
     end
-end
 
+    -- Apply/Save Button
+    local _shader_apply  = shader_scopes_editor.ShaderScopesEditor.Save_Params
+    function shader_scopes_editor.ShaderScopesEditor:Save_Params()
+        override_debug_cache()
+
+
+        -- actor_menu.set_msg(2, "Saving to cache " .. cache_name, 2)
+
+        -- only do dltx save if holding ALT
+        if not mcm or not mcm.MOD_ALT then
+            display_msg("There is no going back! If you want to save to DLTX, hold ALT and save again!")
+            return
+        end
+
+        _shader_apply(self)
+
+        local wpn_sec = get_current_wpn()
+
+        if (wpn_sec == "") then error("No weapon held!") return end
+        
+        debug("Saving current Weapon DLTX Changes for weapon %s", wpn_sec)
+
+
+        local CreateTimeEvent = CreateTimeEvent
+        if demonized_time_events then
+            CreateTimeEvent = demonized_time_events.CreateTimeEvent
+        end
+
+        local clean_excess_newlines = ym_weapon_hud_anywhere.clean_excess_newlines
+
+
+        local function delay_reload()
+            reload_configs()
+        
+            return true
+        end
+
+        local function delay_edit()
+            debug("saving to dltx")
+            local ltx = get_cache_file('rb')
+            
+            if not ltx then return true end
+
+            local data = ltx:read("*all")
+            local new_data
+            ltx:close()
+            if data then
+                -- debug_print_table("data", data)
+                debug("data = %s", data)
+                new_data = string.gsub(data, "%[", "![")
+                new_data = clean_excess_newlines(new_data)
+                debug("new data = %s", new_data)
+                
+                -- write changes to dltx
+                local ltx = get_dltx_file('w')
+                
+                if ltx then
+                    ltx:write(new_data)
+                    ltx:close()
+                end
+            end
+
+            CreateTimeEvent("ym_3d_shader_dltx_save_reload", "ym_3d_shader_dltx_save_reload", 1, delay_reload)
+
+            return true
+        end
+
+        CreateTimeEvent("ym_3d_shader_dltx_save", "ym_3d_shader_dltx_save", 0, delay_edit)
+
+        override_debug_cache()
+    end
+    ----------------
+    -- New Buttons
+    ----------------
+    ---
+    ---Reset DLTX Button
+   
+    -- InitControls
+    local _init_controls = shader_scopes_editor.ShaderScopesEditor.InitControls
+    function shader_scopes_editor.ShaderScopesEditor:InitControls()
+        _init_controls(self)
+
+        local xml = self.xml
+
+        -- Override apply button text
+        ------------------------------------------------
+        self.btn_apply:TextControl():SetText(game.translate_string("st_ui_dbg_item_btn_ym_save"))
+
+        -- reset button
+        ------------------------------------------------
+
+        self.btn_ym_reset_3d = xml:Init3tButton("SSE:btn_ym_reset_3d", self.dialog)
+        self:Register(self.btn_ym_reset_3d, "btn_ym_reset_3d")
+    end
+
+    -- InitCallbacks
+    local _init_callbacks = shader_scopes_editor.ShaderScopesEditor.InitCallBacks
+    function shader_scopes_editor.ShaderScopesEditor:InitCallBacks()
+        _init_callbacks(self)
+
+        self:AddCallback("btn_ym_reset_3d", ui_events.BUTTON_CLICKED, self.OnButtonDLTXReset, self)
+    end
+
+    function shader_scopes_editor.ShaderScopesEditor:OnButtonDLTXReset()
+        debug("reset button")
+        if mcm and mcm.get_mod_key(ALT_MOD) then
+            local wpn_sec = get_current_wpn()
+            if (wpn_sec == "") then self:Send_Msg("There is not a held weapon to reset changes for") return end
+
+            debug("Resetting current 3D Shader Settings for weapon %s", wpn_sec)
+
+            reset_cache_section(wpn_sec)
+            reset_dltx_section(wpn_sec)
+            -- reload_configs()
+
+            self:OnButton_Reset_All()
+
+            reload_configs()
+            override_debug_cache()
+        else
+            display_msg("Hold ALT and try again to delete dltx changes")
+            return
+        end
+
+    end
+
+
+end
 
 --#region DEBUG ----------------------------------------
 
@@ -242,7 +477,7 @@ function debug_tip(text, delay, ...)
     news_manager.send_tip(db.actor, text, nil, ico, delay)
 end
 
-local function debug_print_table(caption, tbl_options)
+function debug_print_table(caption, tbl_options)
     if not DEBUG then return end
 
     if not tbl_options then
@@ -263,7 +498,7 @@ local function debug_print_table(caption, tbl_options)
     print_table(tbl, indent)
 end
 
-local function info_print_table(caption, tbl_options)
+function info_print_table(caption, tbl_options)
     if not DEBUG then return end
     if not tbl_options then
         info("info_print_table: tbl_options is nil")

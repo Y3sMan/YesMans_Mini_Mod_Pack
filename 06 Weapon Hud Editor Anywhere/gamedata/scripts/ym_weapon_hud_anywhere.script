@@ -256,8 +256,8 @@ end
 --------------------------------------------
 
 ---Reset dltx changes for section wpn
----@param wpn string string: string section of wpn 
----@return boolean success:  whether wpn section dltx was reset successfully
+---@param wpn string string string section of wpn 
+---@return boolean success  whether wpn section dltx was reset successfully
 function reset_wpn_dltx(wpn)
     return false
 end
@@ -273,8 +273,8 @@ function wpn_has_parent(wep_sec)
 end
 
 ---Takes wpn_sec and returns the non_hud section
----@param wpn_sec string: weapon section ending with `_hud`
----@return string: parent weapon section string without `_hud`
+---@param wpn_sec string weapon section ending with `_hud`
+---@return string parent weapon section string without `_hud`
 function get_sec_parent(wpn_sec)
     local p = string.gsub(wpn_sec, "_hud", "") or ""
     return p
@@ -300,30 +300,36 @@ function get_game_config_path()
 end
 
 ---Get file object of ltx in gamedata/configs
----@param filepath string path: A file inside `gamedata/configs`
----@param io_args string: arguments to pass to `io.open`: 'w|a|r|(b)'
+---@param filepath string A file inside `gamedata/configs`
+---@param io_args? string arguments to pass to `io.open`. Defaults to `'w'`
+---| "w" - write mode (overwrites existing)
+---| "a" - append mode (appends to existing)
+---| "b" - binary mode
+---| "r+" - update mode (existing data preserved)
+---| "w+" - update mode (existing data erased)
+---| "a+" - append update mode (existing data preserved, append at end of file only)
 ---@return file*?
 function get_config_file(filepath, io_args)
     local cfg_path = get_game_config_path()
 	local path = cfg_path and cfg_path  .. filepath
+    local io_args = io_args or "w"
     local ltx = path and io.open(path, io_args) or nil
     return ltx or nil
 end
 
+
 ---Return `ym_wpn_hud_cache.ltx` file
----@param io_args string: arguments to passthrough to `io.open`
+---@param io_args string arguments to passthrough to `io.open`
 ---@return file*?
 function get_cache_file(io_args)
-    io_args = io_args or "w"
     local ltx = get_config_file(cache_name, io_args)
     return ltx or nil
 end
 
----Return `mod_system_ym_wpn_hud_edits` file
----@param io_args string: arguments to passthrough to `io.open`
+---Return `mod_system_zzzzzzzzzzzzzz_ym_wpn_hud_edits` file
+---@param io_args string arguments to passthrough to `io.open`
 ---@return file*?
 function get_dltx_file(io_args)
-    io_args = io_args or "w"
     local ltx = get_config_file(dltx_name, io_args)
     return ltx or nil
 end
@@ -362,7 +368,7 @@ end
 
 
 ---Take input str_in and remove excess newlines. "Excess" means more than 2 empty newlines
----@param str_in string string: input string 
+---@param str_in string string input string 
 function clean_excess_newlines(str_in)
     local str_out = string.gsub(str_in, "\n", "")
     debug_print_table("clean_excess_newlines", {
@@ -397,110 +403,152 @@ function fixup_dltx(str_in)
 end
 
 
----Reset hud all changes for wpn
----@param wpn string: weapon hud section
-function reset_cache_section(wpn)
-    local path = get_game_config_path()
-    local ltx = path and utils_data.cfg_file(path .. "//" .. cache_name, true)
-    local wpn_hud = wpn .. "_hud"
-    local keys = ltx and ltx:GetKeys(wpn_hud) or {}
-    
-    -- clear _hud section values in cache
-    for k,v in pairs(keys) do
-        debug("k,v = %s, %s", k, v)
-        -- ltx:SetValue(wpn_hud, k, nil)
-        ltx:ClearValue(wpn_hud, k)
+---Clear section keys and values for `wpn` section in `filename` config file
+---@param wpn string weapon section name
+---@param filename string name of config file 
+-- function reset_cfg_section(wpn, filename)
+--     local path = get_game_config_path()
+--     local ltx = path and utils_data.cfg_file(path .. "//" .. filename, true)
+
+--     if not ltx then error("LTX not found: %s", filename) return end
+
+--     local function clear_values(sec)
+--         local keys = ltx and ltx:GetKeys(sec) or {}
+
+
+--         -- clear _hud section values in cache
+--         for k, v in pairs(keys) do
+--             debug("k,v = %s, %s", k, v)
+--             -- ltx:SetValue(sec, k, nil)
+--             ltx:ClearValue(sec, k)
+--         end
+
+--     end
+
+
+--     -- clear values for [wpn]
+--     clear_values(wpn)
+
+--     -- clear values for [wpn_sec]
+--     local wpn_hud = wpn .. "_hud"
+--     clear_values(wpn_hud)
+
+--     -- special check if use_alt_aim_hud is set
+--     if ltx:KeyExist(wpn,"use_alt_aim_hud") then
+--         ltx:ClearValue(wpn, "use_alt_aim_hud")
+--     end
+
+--     -- save changes
+--     ltx:Save()
+-- end
+
+function reset_cfg_section(wpn, filename)
+    local ltx = ini_file_ex(filename, true)
+    if not ltx then return end
+
+    local wpn_hud = ini_sys:r_string_ex(wpn, "hud")
+
+    local function clear(sec)
+        local tbl = ltx:collect_section(sec)
+        debug("[%s]", sec)
+        print_table(tbl)
+        for k, v in pairs(tbl) do
+            debug("k,v %s = %s", k, v)
+            ltx:remove_line(sec, k)
+        end
     end
 
-    -- clear use_alt_aim_hud parameter
-    ltx:ClearValue(wpn, "use_alt_aim_hud")
+    clear(wpn)
+    clear(wpn_hud)
 
-    ltx:Save()
+    ltx:save()
 end
 
----Reset dltx changes for current wpn
----@return boolean success:  whether current wpn section dltx was reset successfully
+---Reset hud all changes for wpn in our cache file
+---@param wpn string weapon hud section
+function reset_cache_section(wpn)
+    reset_cfg_section(wpn, cache_name)
+end
+
+
+---Reset dltx changes for current `wpn` in dltx file `dltx_name`
+---@param wpn string section name of weapon
+---@param dltx_name string filename of dltx file
+---@return boolean success  whether current wpn section dltx was reset successfully
+function reset_a_dltx_section(wpn, dltx_name)
+    local ltx = get_config_file(dltx_name, 'rb') or nil
+
+    if not ltx then error("DLTX not found: %s", dltx_name) return false end
+    local ltx_data = ltx:read("*all")
+    ltx:close()
+    debug("resetting wpn %s in dltx %s", wpn, dltx_name)
+    debug("ltx data = %s", ltx_data)
+
+    local new_dltx_str = ltx_data
+
+
+    -- function to find and replace ![wpn] and ![wpn_hud] sections and all child values
+    local function replace_sections(wpn, input_str)
+
+        local wpn = "%!%[" .. wpn .. "%]"
+
+        -- regex str to find section up to beginning of next "!["
+        local inbw_str_to_find = wpn .. ".-%!%["
+        -- regex str to find section up to EOF
+        local eof_str_to_find = wpn .. ".*"
+
+        -- what to replace matches with
+        local inbw_str_to_replace = "!["
+        local eof_str_to_replace = ""
+
+        local output_str = ""
+
+        -- find str matches
+        i1, j1 = string_find(input_str, inbw_str_to_find)
+        i2, j2 = string_find(input_str, eof_str_to_find)
+
+        -- replace matches
+        -- if section is found before another section
+        if i1 then 
+            debug("found wpn before a section at i,j %s,%s ", i1, j1)
+            output_str = string.gsub(input_str, inbw_str_to_find, inbw_str_to_replace)
+        -- if section is found eof
+        elseif i2 then
+            debug("found wpn eof at i,j %s,%s ", i2, j2)
+            output_str = string.gsub(input_str, eof_str_to_find, eof_str_to_replace)
+        -- if section is not found, just return the input str
+        else
+            return input_str
+        end
+
+
+        return output_str or input_str
+    end
+
+    -- remove ![wpn] and ![wpn_hud] sections and values
+    local wpn_hud = ini_sys:r_string_ex(wpn, "hud")
+
+    new_dltx_str = replace_sections(wpn, new_dltx_str)
+    new_dltx_str = replace_sections(wpn_hud, new_dltx_str)
+
+    -- open dltx file
+    local ltx = get_config_file(dltx_name, 'w')
+
+    if not ltx then  return false end
+
+    -- write new dltx str to file
+    ltx:write(new_dltx_str)
+    ltx:close()
+
+    return true
+end
+
+
+---Reset dltx changes for current `wpn` in dltx file `mod_system_zzzzzzzzzzzzzz_ym_wpn_hud_edits.ltx`
+---@param wpn string section name of weapon
+---@return boolean success  whether current wpn section dltx was reset successfully
 function reset_dltx_section(wpn)
-
-	-- local wpn = db.actor:active_item()
-    -- local wpn_sec = wpn
-    local hud_sec = ini_sys:r_string_ex(wpn, "hud")
-    debug("reseting hud section %s", hud_sec)
-    local parent_sec = nil
-    if wpn_has_parent(wpn) then
-        parent_sec = get_parent_wpn(wpn)
-    end
-
-    debug("wpn = %s and parent = %s", wpn, parent_sec)
-    
-
-    -- Read data from our dltx
-    local ltx = get_dltx_file('rb') or nil
-
-    if ltx then
-        local test_data = ltx:read("*all")
-        ltx:close()
-        debug("test data = %s", test_data)
-
-        -- remove all settings between sections
-        --[[
-            [wpn_1]
-            >>>>    stuff = 1,2, 3  <<<<<
-            [wpn_2]
-                stuff2 = 2,3,4
-        --]]
-        local to_change = { }
-        to_change.wpn_sec = wpn
-        to_change.wpn_hud_sec = wpn .. "_hud"
-
-        local new_dltx_str = test_data
-        for _, sec in pairs(to_change) do
-            -- local hud_wpn = wpn .. "_hud"
-            local hud_wpn = sec
-            hud_wpn = "!%[" .. hud_wpn .. "%]"
-
-            local inbw_str_to_find = hud_wpn .. ".-%!%["
-            local eof_str_to_find = hud_wpn .. ".*"
-
-            local inbw_str_to_replace = "!["
-            local eof_str_to_replace = ""
-
-
-            -- check if current wpn is even in dltx
-            local i, j = string_find(new_dltx_str, hud_wpn)
-            debug("i, j = %s, %s", i, j)
-
-            if not i then return false end
-
-            -- test if wpn is inbetween other sections or at the end of the file
-            i, j = string_find(new_dltx_str, inbw_str_to_find)
-
-
-            -- at eof
-            if not i then
-                i, j = string_find(new_dltx_str, eof_str_to_find)
-                new_dltx_str = string.gsub(new_dltx_str, eof_str_to_find, eof_str_to_replace)
-                debug("wpn %s is at eof", wpn)
-                -- in between
-            else
-                debug("wpn %s is inbetween other sections", wpn)
-                new_dltx_str = string.gsub(new_dltx_str, inbw_str_to_find, inbw_str_to_replace)
-            end
-        end
-
-        new_dltx_str = fixup_dltx(new_dltx_str)
-        debug("new test data = %s", new_dltx_str)
-
-        local ltx = get_dltx_file('w')
-        if ltx then
-            ltx:write(new_dltx_str)
-            ltx:close()
-        end
-        
-        return true
-    end
-
-    return false
+    return reset_a_dltx_section(wpn, dltx_name)
 end
 
 ---Override ui_debug_launcher's namespace variable `ini_cc`
@@ -604,13 +652,18 @@ end
 -- save to dltx on original "Apply" button
 local _on_btn_save = ui_debug_wpn_hud.WpnHudEditor.OnButtonSave
 function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
-    _on_btn_save(self)
 
     -- only do dltx save if holding ALT
     if not mcm or not mcm.MOD_ALT then
         display_msg("There is no going back! If you want to save to DLTX, hold ALT and save again!")
         return
     end
+
+    -- redirect to our cache file
+    override_debug_cache()
+
+    _on_btn_save(self)
+
 
     local section = self.section
     debug("Saving current Weapon DLTX Changes for weapon %s", section)
@@ -737,8 +790,8 @@ end
 
 
 function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXReset()
-    debug("Resetting current Weapon DLTX Changes")
     if mcm and mcm.get_mod_key(ALT_MOD) then
+        debug("Resetting current Weapon DLTX Changes")
         reset_cache_section(self.section)
         reset_dltx_section(self.section)
         reload_configs()
