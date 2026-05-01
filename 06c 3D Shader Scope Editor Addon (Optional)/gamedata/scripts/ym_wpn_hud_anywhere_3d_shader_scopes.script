@@ -1,3 +1,14 @@
+
+assert(ym_weapon_hud_anywhere, "\n\n"..
+    "! Weapon Hud Anywhere 3D Shader Patch requires ym_weapon_hud_anywhere, which does not exist!\n\n"
+)
+
+assert(shader_scopes_editor, "\n\n"..
+    "! Weapon Hud Anywhere 3D Shader Patch requires shader_scopes_editor, which does not exist!\n\n"
+)
+
+
+
 ----------------
 -- Imports
 ----------------
@@ -294,6 +305,8 @@ function patches()
     function shader_scopes_editor.ShaderScopesEditor:InitControls()
         _init_controls(self)
 
+        local xml = self.xml
+
         -- Override apply button text
         ------------------------------------------------
         self.btn_apply:TextControl():SetText(game.translate_string("st_ui_dbg_item_btn_ym_save"))
@@ -309,6 +322,7 @@ function patches()
     local _init_callbacks = shader_scopes_editor.ShaderScopesEditor.InitCallBacks
     function shader_scopes_editor.ShaderScopesEditor:InitCallBacks()
         _init_callbacks(self)
+
         self:AddCallback("btn_ym_reset_3d", ui_events.BUTTON_CLICKED, self.OnButtonDLTXReset, self)
     end
 
