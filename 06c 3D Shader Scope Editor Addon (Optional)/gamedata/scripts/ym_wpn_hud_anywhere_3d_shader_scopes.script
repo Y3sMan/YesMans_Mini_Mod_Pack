@@ -463,7 +463,7 @@ function debug_tip(text, delay, ...)
     news_manager.send_tip(db.actor, text, nil, ico, delay)
 end
 
-local function debug_print_table(caption, tbl_options)
+function debug_print_table(caption, tbl_options)
     if not DEBUG then return end
 
     if not tbl_options then
@@ -484,7 +484,7 @@ local function debug_print_table(caption, tbl_options)
     print_table(tbl, indent)
 end
 
-local function info_print_table(caption, tbl_options)
+function info_print_table(caption, tbl_options)
     if not DEBUG then return end
     if not tbl_options then
         info("info_print_table: tbl_options is nil")
