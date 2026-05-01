@@ -2,10 +2,9 @@
     Mod Name: Weapon Hud Anywhere
     Author:	YesMan
     Created:	20-03-2026 (dd-mm-yyyy)
-    Last Edit:	20-03-2026 (dd-mm-yyyy)
-    Version:	v1.0
+    Last Edit:  01-05-2026 (dd-mm-yyyy)	
+    Version:	v2.0
 ]]
-
 
 --#region DEBUG ----------------------------------------
 
@@ -74,7 +73,8 @@ local function log(log_type, output, ...)
         callstack()
     elseif (type(output) == "table") then
         utils_data.debug_write("[" .. modname .. "] "..log_type..": ")
-        debug_print_table(output)
+        -- debug_print_table(output)
+        print_table(output)
     else
         -- pulled from _g.script
         -- more var subbing
@@ -88,6 +88,8 @@ local function log(log_type, output, ...)
                         return vec_to_str(p[i])
                     end
                     return 'userdata'
+                -- elseif (type(p[i]) == "table") then
+                    -- return dump_table(p[i])
                 end
                 return tostring(p[i])
             end
@@ -201,66 +203,617 @@ end
 
 --#endregion------------------------------------------------------------------
 
-local KEYBIND = key_bindings.kCUSTOM17
 
+-- Imports
 local start_weapon = ui_debug_launcher.start_wpn_hud_editor
 local prepare = ui_debug_launcher.prepare
+local _ini_cc = ui_debug_launcher.ini_cc
+local _cache_name = "cache_dbg.ltx"
+-- local clean_memo = ui_debug_wpn_hud.WpnHudEditor.CleanMemo
 local reload_wpn_hud = ui_debug_launcher.reload_wpn_hud
 local dte = demonized_time_events
+local mcm = ui_mcm
+local string_find = string.find
 
+
+-- definitions
+
+--- keybinding used to open wpn hud editor in non-debug mode. Defaults to `kCUSTOM17`
+KEYBIND = key_bindings.kCUSTOM17
+--- modifier to use to press reset and save buttons
+ALT_MOD = 3 -- for use with ui_mcm.get_mod_key
+
+--- dltx file to save hud edits to
+dltx_name = "mod_system_zzzzzzzzzzzzzz_ym_wpn_hud_edits.ltx"
+--- redirect wpn hud editor to our new cache file
+cache_name = "ym_wpn_hud_cache.ltx"
+
+
+--------------------------------------------
+-- Display Utilities
+--------------------------------------------
 
 function display_msg(msg)
     actor_menu.set_msg(1, msg,5)
 end
 
----Reload ini and weapon hud with a Time Event
-function reload_all()
-    -- reload the configs and hud
-    local function delay_reload()
-        reload_ini_sys()
-        reload_wpn_hud()
-
-        return true
+function display_news_tip(msg)
+    if not db.actor then
+        return
     end
+    
+    local ico = "ui_inGame2_Dengi_otdani"
+    local text_color = utils_xml.get_color("pda_white")
 
-    dte.CreateTimeEvent("ym_wpn_hud_reload", "ym_wpn_hud_reload", 1, delay_reload)
+    local text = text_color .. msg
+
+    local delay = 6000
+
+    news_manager.send_tip(db.actor, text, nil, ico, delay)
+
 end
 
+--------------------------------------------
+
+---Reset dltx changes for section wpn
+---@param wpn string string string section of wpn 
+---@return boolean success  whether wpn section dltx was reset successfully
+function reset_wpn_dltx(wpn)
+    return false
+end
+
+
+function get_parent_wpn(wep_sec)
+	local parent_section = ini_sys:r_string_ex(wep_sec, "parent_section")
+	return parent_section or wep_sec
+end
+
+function wpn_has_parent(wep_sec)
+	return (get_parent_wpn(wep_sec) ~= wep_sec) 
+end
+
+---Takes wpn_sec and returns the non_hud section
+---@param wpn_sec string weapon section ending with `_hud`
+---@return string parent weapon section string without `_hud`
+function get_sec_parent(wpn_sec)
+    local p = string.gsub(wpn_sec, "_hud", "") or ""
+    return p
+end
+
+--------------------------------------------
+--#region Config Utilities
+--------------------------------------------
+
+
+
+
+---Reload in-memory configs and weapon hud
+function reload_configs()
+    reload_ini_sys()
+    reload_wpn_hud()
+end
+
+---Return string filepath to `./gamedata/config/`
+---@return string?
+function get_game_config_path()
+    return getFS():update_path('$game_config$', '') or nil
+end
+
+---Get file object of ltx in gamedata/configs
+---@param filepath string A file inside `gamedata/configs`
+---@param io_args? string arguments to pass to `io.open`. Defaults to `'w'`
+---| "w" - write mode (overwrites existing)
+---| "a" - append mode (appends to existing)
+---| "b" - binary mode
+---| "r+" - update mode (existing data preserved)
+---| "w+" - update mode (existing data erased)
+---| "a+" - append update mode (existing data preserved, append at end of file only)
+---@return file*?
+function get_config_file(filepath, io_args)
+    local cfg_path = get_game_config_path()
+	local path = cfg_path and cfg_path  .. filepath
+    local io_args = io_args or "w"
+    local ltx = path and io.open(path, io_args) or nil
+    return ltx or nil
+end
+
+
+---Return `ym_wpn_hud_cache.ltx` file
+---@param io_args string arguments to passthrough to `io.open`
+---@return file*?
+function get_cache_file(io_args)
+    local ltx = get_config_file(cache_name, io_args)
+    return ltx or nil
+end
+
+---Return `mod_system_zzzzzzzzzzzzzz_ym_wpn_hud_edits` file
+---@param io_args string arguments to passthrough to `io.open`
+---@return file*?
+function get_dltx_file(io_args)
+    local ltx = get_config_file(dltx_name, io_args)
+    return ltx or nil
+end
+
+
+---Reset ym_wpn_hud_cache.ltx
+function reset_cache()
+    local ltx = get_cache_file('w')
+    if ltx then
+        ltx:write("")
+        ltx:close()
+    end
+end
+
+---Empties entire DLTX file
+---
+---**Be very careful with these**
+function reset_dltx_all()
+    local ltx = get_dltx_file('w')
+    if ltx then
+        ltx:write("")
+        ltx:close()
+    end
+end
+
+---Reset both ym_wpn_hud_cache.ltx and the dltx mod_system_ym_wpn_hud_edits.ltx
+---
+---**Be very careful with these**
+function reset_configs()
+    reset_cache()
+    reset_dltx_all()
+
+    -- reload_configs()
+    display_msg("Resetting the DLTX and ym_wpn_hud_cache.ltx")
+end
+
+
+---Take input str_in and remove excess newlines. "Excess" means more than 2 empty newlines
+---@param str_in string string input string 
+function clean_excess_newlines(str_in)
+    local str_out = string.gsub(str_in, "\n", "")
+    debug_print_table("clean_excess_newlines", {
+        ["str_in"] = str_in or false,
+        ["str_out"] = str_out or false
+    })
+    return str_out or str_in
+end
+
+--- ensure str_in is ready to write to dltx
+---@param str_in string dltx file string
+---@return string formatted dltx file string
+function fixup_dltx(str_in)
+    local str_out = "str_out empty"
+
+    -- cleanup excess newlines
+    str_out = clean_excess_newlines(str_in)
+
+    -- fix smashed together sections
+    --[[
+        ![wpn_1]![wpn2]
+    --]]
+    str_out = string.gsub(str_in, "%]%!%[", "]\n![")
+    debug_print_table("fixup_dltx", {
+        ["str_in"] = str_in or false,
+        ["str_out"] = str_out or false
+    })
+
+    str_out = clean_excess_newlines(str_out)
+
+    return str_out or str_in
+end
+
+
+---Clear section keys and values for `wpn` section in `filename` config file
+---@param wpn string weapon section name
+---@param filename string name of config file 
+-- function reset_cfg_section(wpn, filename)
+--     local path = get_game_config_path()
+--     local ltx = path and utils_data.cfg_file(path .. "//" .. filename, true)
+
+--     if not ltx then error("LTX not found: %s", filename) return end
+
+--     local function clear_values(sec)
+--         local keys = ltx and ltx:GetKeys(sec) or {}
+
+
+--         -- clear _hud section values in cache
+--         for k, v in pairs(keys) do
+--             debug("k,v = %s, %s", k, v)
+--             -- ltx:SetValue(sec, k, nil)
+--             ltx:ClearValue(sec, k)
+--         end
+
+--     end
+
+
+--     -- clear values for [wpn]
+--     clear_values(wpn)
+
+--     -- clear values for [wpn_sec]
+--     local wpn_hud = wpn .. "_hud"
+--     clear_values(wpn_hud)
+
+--     -- special check if use_alt_aim_hud is set
+--     if ltx:KeyExist(wpn,"use_alt_aim_hud") then
+--         ltx:ClearValue(wpn, "use_alt_aim_hud")
+--     end
+
+--     -- save changes
+--     ltx:Save()
+-- end
+
+function reset_cfg_section(wpn, filename)
+    local ltx = ini_file_ex(filename, true)
+    if not ltx then return end
+
+    local wpn_hud = ini_sys:r_string_ex(wpn, "hud")
+
+    local function clear(sec)
+        local tbl = ltx:collect_section(sec)
+        debug("[%s]", sec)
+        print_table(tbl)
+        for k, v in pairs(tbl) do
+            debug("k,v %s = %s", k, v)
+            ltx:remove_line(sec, k)
+        end
+    end
+
+    clear(wpn)
+    clear(wpn_hud)
+
+    ltx:save()
+end
+
+---Reset hud all changes for wpn in our cache file
+---@param wpn string weapon hud section
+function reset_cache_section(wpn)
+    reset_cfg_section(wpn, cache_name)
+end
+
+
+---Reset dltx changes for current `wpn` in dltx file `dltx_name`
+---@param wpn string section name of weapon
+---@param dltx_name string filename of dltx file
+---@return boolean success  whether current wpn section dltx was reset successfully
+function reset_a_dltx_section(wpn, dltx_name)
+    local ltx = get_config_file(dltx_name, 'rb') or nil
+
+    if not ltx then error("DLTX not found: %s", dltx_name) return false end
+    local ltx_data = ltx:read("*all")
+    ltx:close()
+    debug("resetting wpn %s in dltx %s", wpn, dltx_name)
+    debug("ltx data = %s", ltx_data)
+
+    local new_dltx_str = ltx_data
+
+
+    -- function to find and replace ![wpn] and ![wpn_hud] sections and all child values
+    local function replace_sections(wpn, input_str)
+
+        local wpn = "%!%[" .. wpn .. "%]"
+
+        -- regex str to find section up to beginning of next "!["
+        local inbw_str_to_find = wpn .. ".-%!%["
+        -- regex str to find section up to EOF
+        local eof_str_to_find = wpn .. ".*"
+
+        -- what to replace matches with
+        local inbw_str_to_replace = "!["
+        local eof_str_to_replace = ""
+
+        local output_str = ""
+
+        -- find str matches
+        i1, j1 = string_find(input_str, inbw_str_to_find)
+        i2, j2 = string_find(input_str, eof_str_to_find)
+
+        -- replace matches
+        -- if section is found before another section
+        if i1 then 
+            debug("found wpn before a section at i,j %s,%s ", i1, j1)
+            output_str = string.gsub(input_str, inbw_str_to_find, inbw_str_to_replace)
+        -- if section is found eof
+        elseif i2 then
+            debug("found wpn eof at i,j %s,%s ", i2, j2)
+            output_str = string.gsub(input_str, eof_str_to_find, eof_str_to_replace)
+        -- if section is not found, just return the input str
+        else
+            return input_str
+        end
+
+
+        return output_str or input_str
+    end
+
+    -- remove ![wpn] and ![wpn_hud] sections and values
+    local wpn_hud = ini_sys:r_string_ex(wpn, "hud")
+
+    new_dltx_str = replace_sections(wpn, new_dltx_str)
+    new_dltx_str = replace_sections(wpn_hud, new_dltx_str)
+
+    -- open dltx file
+    local ltx = get_config_file(dltx_name, 'w')
+
+    if not ltx then  return false end
+
+    -- write new dltx str to file
+    ltx:write(new_dltx_str)
+    ltx:close()
+
+    return true
+end
+
+
+---Reset dltx changes for current `wpn` in dltx file `mod_system_zzzzzzzzzzzzzz_ym_wpn_hud_edits.ltx`
+---@param wpn string section name of weapon
+---@return boolean success  whether current wpn section dltx was reset successfully
+function reset_dltx_section(wpn)
+    return reset_a_dltx_section(wpn, dltx_name)
+end
+
+---Override ui_debug_launcher's namespace variable `ini_cc`
+function override_debug_cache()
+    ui_debug_launcher.ini_cc = ini_file_ex(cache_name, true)
+end
+
+---Reset ui_debug_launcher's ini_cc to its original value
+function restore_debug_cache_reference()
+    ui_debug_launcher.ini_cc = _ini_cc
+    -- ui_debug_launcher.ini_cc = ini_file_ex(_cache_name, true)
+end
+
+--#endregion--------------------------------
+
+--------------------------------------------
+--#region  Events
+--------------------------------------------
+
+
+-- Open Wpn Hud Editor
 function on_key_release(key)
     local bind = dik_to_bind(key)
     if (bind == KEYBIND) then
+        -- necessary prepare function from ui_debug_launcher
         prepare()
+
+        -- make this wpn hud save to our own cache file
+        override_debug_cache()
+
+        -- launch hud editor
         start_weapon()
     end
 end
 
-local _on_keyboard = ui_debug_wpn_hud.WpnHudEditor.OnKeyboard
-function ui_debug_wpn_hud.WpnHudEditor:OnKeyboard(dik,keyboard_action)
-    -- reset event
-    if dik == DIK_keys.DIK_NUMPAD0 then
-        reload_all()
-    else
-        _on_keyboard(self, dik, keyboard_action)
+
+
+--------------------------------------------
+--#region WpnHudEditor Class function overrides
+--------------------------------------------
+
+-- On hud start, point namespace copy of ui_debug_launcher.ini_cc to our own cache file
+local _init = ui_debug_wpn_hud.WpnHudEditor.__init
+function ui_debug_wpn_hud.WpnHudEditor:__init(owner, section) super()
+    _init(self, owner, section)
+
+    info("overriding ini file with our own: %s", cache_name)
+    override_debug_cache()
+end
+
+
+-- override InitControls
+-- add new buttons
+local _init_controls = ui_debug_wpn_hud.WpnHudEditor.InitControls
+function ui_debug_wpn_hud.WpnHudEditor:InitControls()
+    _init_controls(self)
+
+
+    -- alt aim button
+    ------------------------------------------------
+
+    local xml = self.xml
+    xml:InitStatic("dbg_wpn_hud_editor:cap_ym_alt_aim", self.dialog)
+
+    self.btn_ym_alt_aim = xml:InitCheck("dbg_wpn_hud_editor:check_ym_alt_aim", self.dialog)
+    self:Register(self.btn_ym_alt_aim, "btn_ym_alt_aim")
+
+    -- set check status based off weapons `use_alt_aim_hud` property
+    local wpn_sec = self.section or false -- ui_debug_wpn_hud.GUI and ui_debug_wpn_hud.GUI.section and ui_debug_wpn_hud.GUI.section
+    local is_alt_aim = false 
+    if SYS_GetParam(0, wpn_sec, "use_alt_aim_hud") == "true" then
+        is_alt_aim = true
+    end
+
+    debug_print_table("init alt aim check status", {
+        ["section"] = wpn_sec or false,
+        ["use_alt_aim_hud"] = is_alt_aim or false
+    })
+
+    self.btn_ym_alt_aim:SetCheck(is_alt_aim)
+
+    -- reset button
+    ------------------------------------------------
+
+    self.btn_ym_reset = xml:Init3tButton("dbg_wpn_hud_editor:btn_ym_reset", self.dialog)
+    self:Register(self.btn_ym_reset, "btn_ym_reset")
+end
+
+-- override InitCallBacks
+local _init_callbacks = ui_debug_wpn_hud.WpnHudEditor.InitCallBacks
+function ui_debug_wpn_hud.WpnHudEditor:InitCallBacks()
+    debug("adding new callbacks")
+    -- new buttons
+    self:AddCallback("btn_ym_reset", ui_events.BUTTON_CLICKED, self.OnButtonDLTXReset, self)
+
+    _init_callbacks(self)
+end
+
+----------------
+
+-- save to dltx on original "Apply" button
+local _on_btn_save = ui_debug_wpn_hud.WpnHudEditor.OnButtonSave
+function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
+
+    -- only do dltx save if holding ALT
+    if not mcm or not mcm.MOD_ALT then
+        display_msg("There is no going back! If you want to save to DLTX, hold ALT and save again!")
+        return
+    end
+
+    -- redirect to our cache file
+    override_debug_cache()
+
+    _on_btn_save(self)
+
+
+    local section = self.section
+    debug("Saving current Weapon DLTX Changes for weapon %s", section)
+
+    local function save_alt_aim_status()
+        local alt_aim_status = self.btn_ym_alt_aim:GetCheck()
+        debug("alt aim check status = %s", alt_aim_status)
+        local parent = section -- get_sec_parent(section)
+        debug("parent sec = %s", parent)
+
+        local ini_cc = ui_debug_launcher.ini_cc
+        local alt_aim_par = "use_alt_aim_hud"
+
+        local cached_val = ini_cc:r_value(parent, alt_aim_par)
+        debug("cached use_alt_aim_hud = %s", cached_val)
+
+        if not (cached_val and cached_val ~= "") then
+            local old_val = ini_sys:r_string_ex(parent, alt_aim_par)
+            debug("old use_alt_aim_hud = %s", old_val)
+            ini_cc:w_value(parent, alt_aim_par, old_val)
+            ini_cc:save()
+        end
+
+        local is_alt_aim_changed = (alt_aim_status ~= cached_val) and true or false
+
+        if is_alt_aim_changed then
+            debug("saving new use_alt_aim_hud status = %s", alt_aim_status)
+            ini_cc:w_value(parent, alt_aim_par, alt_aim_status)
+            ini_cc:save()
+            display_msg("Make sure to reload a save to refresh Alt Aim settings!")
+        end
+    end
+
+    local function delay_reload()
+
+        reload_configs()
+
+        hud_adjust.remove_hud_model(section)
+
+        return true
+    end
+
+    local function delay_edit()
+        ------
+        save_alt_aim_status()
+
+        -------
+        debug("editing dltx")
+        local ltx = get_cache_file('rb')
+
+        if ltx then
+            local data = ltx:read("*all")
+            local new_data
+            ltx:close()
+            if data then
+                -- debug_print_table("data", data)
+                debug("data = %s", data)
+                new_data = string.gsub(data, "%[", "![")
+                new_data = clean_excess_newlines(new_data)
+                debug("new data = %s", new_data)
+                
+                -- write changes to dltx
+                local ltx = get_dltx_file('w')
+                
+                if ltx then
+                    ltx:write(new_data)
+                    ltx:close()
+                end
+            end
+        end
+
+        -- create refresh event
+        dte.CreateTimeEvent("ym_wpn_hud_reload", "ym_wpn_hud_reload", 1, delay_reload)
+
+        return true
+    end
+
+    dte.CreateTimeEvent("wpn_save", "wpn_save", 0, delay_edit)
+
+end
+
+
+-- completely overwrite CleanCacheDbg function with a nearly identical one, only this one
+-- cleans *our* cache file instead
+function ui_debug_wpn_hud.WpnHudEditor:CleanCacheDbg()
+    -- _clean_cache_dbg(self)
+    local path = get_game_config_path() 
+    path = path and (path .. cache_name) or ""
+    if (path ~= "") then
+        local ini_io = io.open(path, 'w')
+        ini_io:close()
+        override_debug_cache()
+        self:Print(nil, cache_name .. " file cleaned")
     end
 end
 
 
--- will not 
-local _on_btn_save = ui_debug_wpn_hud.WpnHudEditor.OnButtonSave
-function ui_debug_wpn_hud.WpnHudEditor:OnButtonSave()
+-- Restore ui_debug_launcher.ini_cc to the `cache_dbg.ltx` file after closing menu
+-- dont really want other scripts writing to our cache file
+-- local _on_keyboard = ui_debug_wpn_hud.WpnHudEditor.OnKeyboard
+-- function ui_debug_wpn_hud.WpnHudEditor:OnKeyboard(dik, keyboard_action)
+-- 	local res = CUIScriptWnd.OnKeyboard(self,dik,keyboard_action)
+--     if res then return res end
 
-    -- run the original save logic
-    _on_btn_save(self)
+--     if (keyboard_action == ui_events.WINDOW_KEY_PRESSED) and (dik == DIK_keys.DIK_ESCAPE) then
+--         restore_debug_cache_reference()
+--     else
+--         _on_keyboard(self,dik, keyboard_action)
+--     end
 
-    reload_all()
+--     return res
+-- end
+
+local _close = ui_debug_wpn_hud.WpnHudEditor.Close
+function ui_debug_wpn_hud.WpnHudEditor:Close()
+    restore_debug_cache_reference()
+    _close(self)
 end
 
+----------------
+-- New Reset button
+-- resets dltx settings for current weapon
+----------------
+
+
+function ui_debug_wpn_hud.WpnHudEditor:OnButtonDLTXReset()
+    if mcm and mcm.get_mod_key(ALT_MOD) then
+        debug("Resetting current Weapon DLTX Changes")
+        reset_cache_section(self.section)
+        reset_dltx_section(self.section)
+        reload_configs()
+        self:CleanMemo()
+        self:Reset(true)
+        override_debug_cache()
+    else
+        display_msg("Hold ALT and try again to delete dltx changes")
+        return
+    end
+end
+----------------
+--#endregion--------------------------------
 
 
 function on_game_start()
-    if not DEV_DEBUG or not DEV_DEBUG_DEV  then
+    if not DEV_DEBUG or not DEV_DEBUG_DEV then
         RegisterScriptCallback("on_key_release", on_key_release)
     else
         info("Debug Mode Enabled. Disabling Weapon Hud Editor Anywhere")
     end
+    -- RegisterScriptCallback("actor_on_first_update", on_first_update)
 end
+
+--#endregion--------------------------------
