@@ -1,4 +1,11 @@
 
+--[[
+    Mod Name: Weapon Hud Anywhere | 3D Shader Editor Patch
+    Author:	YesMan
+    Last Edit:	01-05-2026 (dd-mm-yyyy)
+    Version:	v2.0
+]]
+
 assert(ym_weapon_hud_anywhere, "\n\n"..
     "! Weapon Hud Anywhere 3D Shader Patch requires ym_weapon_hud_anywhere, which does not exist!\n\n"
 )
